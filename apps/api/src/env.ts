@@ -1,0 +1,22 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import dotenv from "dotenv";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+dotenv.config({ path: path.join(__dirname, "../.env.local") });
+
+export function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+export const env = {
+  supabaseUrl: requireEnv("SUPABASE_URL"),
+  supabaseSecretKey: requireEnv("SUPABASE_SECRET_KEY"),
+  apiPort: Number(process.env.API_PORT ?? "8001"),
+};

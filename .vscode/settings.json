@@ -1,0 +1,52 @@
+{
+    "terraform.languageServer": {
+      "rootModules": [
+        "infra/terraform/bootstrap",
+        "infra/terraform/environments/dev",
+        "infra/terraform/environments/prod"
+      ]
+    },
+    "search.exclude": {
+        "out": true // set this to false to include "out" folder in search results
+    },
+    "[typescript]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[javascript]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[typescriptreact]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[javascriptreact]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit"
+        }
+    },
+    // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
+    "files.exclude": {
+        "out/": true,
+        "src/extension/node_modules": true,
+        "src/extension/out": true,
+        "src/language-server/node_modules": true,
+        "src/language-server/out/": true,
+    },
+    "typescript.tsdk": "./node_modules/typescript/lib",
+    "typescript.tsc.autoDetect": "off",
+    "ruff.lineLength": 120,
+    // Suppress GitHub Actions workflow validation warnings
+    "yaml.schemas": {},
+    "yaml.schemaStore.enable": false,
+    "github-actions.workflows.pinned.workflows": [],
+    "github-actions.workflows.validate": false
+  }

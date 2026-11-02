@@ -4,22 +4,22 @@ overview: Add email/password auth, a `pages` table, an Express `api` app, a shar
 todos:
   - id: migration
     content: Add pages migration with RLS (select own only), updated_at trigger, index; update config.toml site_url; db reset
-    status: pending
+    status: completed
   - id: types-pkg
     content: Create packages/types (@ww/types) with generated database.gen.ts, helpers, zod schemas; add db:types script
-    status: pending
+    status: completed
   - id: api
     content: "Scaffold apps/api Express app: env, db, JWKS auth middleware, error handler, health, POST /pages route and service"
-    status: pending
+    status: completed
   - id: web-vite
     content: Replace Next.js apps/web with Vite React app, tailwind, router, react-query, supabase client, apiFetch
-    status: pending
+    status: completed
   - id: web-views
     content: Build AuthProvider/RequireAuth, AuthView, PagesView (list+create), PageView
-    status: pending
+    status: completed
   - id: plumbing
     content: Update root scripts, tsconfig base, env examples, remove Next-specific AGENTS.md; verify end to end
-    status: pending
+    status: completed
 isProject: false
 ---
 

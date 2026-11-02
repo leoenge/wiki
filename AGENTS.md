@@ -1,5 +1,7 @@
 This is a social website where you create your own wikipedia like pages and Wikipedia like pages for your friendships with your best friends. 
 
+General priciple is that we write to the backend api, and read directly from supabase. This doesn't have to be followed when it doesn't suit, but we should aim for that setup.
+
 I hate the dot dot character "•" and the bar character "|". Never use them. Use other ways to create clear stucture and separtions.
 
 ## Styling
