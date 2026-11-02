@@ -7,14 +7,14 @@ export type Database = {
           Tables: {
             "page_elements": {
                   Row: {
-                    "caption": string | null,"created_at": string,"id": string,"image_path": string | null,"page_id": string,"position": number,"text": string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at": string
+                    "caption": string | null,"created_at": string,"id": string,"image_path": string | null,"page_id": string,"parent_id": string | null,"position": number,"text": string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_path"?: string | null,"page_id": string,"position": number,"text"?: string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at"?: string
+                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_path"?: string | null,"page_id": string,"parent_id"?: string | null,"position": number,"text"?: string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at"?: string
                   }
                   Update: {
-                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_path"?: string | null,"page_id"?: string,"position"?: number,"text"?: string | null,"type"?: Database["public"]['Enums']["page_element_type"],"updated_at"?: string
+                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_path"?: string | null,"page_id"?: string,"parent_id"?: string | null,"position"?: number,"text"?: string | null,"type"?: Database["public"]['Enums']["page_element_type"],"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -23,6 +23,12 @@ export type Database = {
 isOneToOne: false
       referencedRelation: "pages"
       referencedColumns: ["id"]
+    },{
+      foreignKeyName: "page_elements_parent_fkey"
+      columns: ["parent_id","page_id"]
+isOneToOne: false
+      referencedRelation: "page_elements"
+      referencedColumns: ["id","page_id"]
     }
                   ]
                 },"pages": {
@@ -48,7 +54,7 @@ isOneToOne: false
             [_ in never]: never
           }
           Enums: {
-            "page_element_type": "image"|"text"
+            "page_element_type": "image"|"text"|"section"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -164,7 +170,7 @@ export type CompositeTypes<
 export const Constants = {
   "public": {
           Enums: {
-            "page_element_type": ["image", "text"]
+            "page_element_type": ["image", "text", "section"]
           }
         }
 } as const

@@ -1,10 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import type {
-  CreateElementBody,
-  PageElement,
-  ReorderElementsBody,
-  UpdateElementBody,
+import {
+  applyAssignmentsToElements,
+  assignmentsFromFlatOrder,
+  type CreateElementBody,
+  type PageElement,
+  type ReorderElementsBody,
+  type UpdateElementBody,
 } from "@ww/types";
 
 import { apiFetch } from "./client.js";
@@ -48,6 +50,20 @@ export function reorderElements(
     {
       method: "PUT",
       body: JSON.stringify(body),
+    },
+  );
+}
+
+export function deleteElement(
+  accessToken: string,
+  pageId: string,
+  elementId: string,
+): Promise<PageElement[]> {
+  return apiFetch<PageElement[]>(
+    `/api/pages/${pageId}/elements/${elementId}`,
+    accessToken,
+    {
+      method: "DELETE",
     },
   );
 }
@@ -124,13 +140,16 @@ export function useReorderElements(accessToken: string | undefined) {
 
       const previous = queryClient.getQueryData<PageElement[]>(queryKey);
       if (previous) {
-        const byId = new Map(previous.map((element) => [element.id, element]));
+        const byId = new Map(
+          previous.map((element) => [
+            element.id,
+            { id: element.id, type: element.type },
+          ]),
+        );
+        const assignments = assignmentsFromFlatOrder(body.element_ids, byId);
         queryClient.setQueryData(
           queryKey,
-          body.element_ids.map((id, index) => ({
-            ...byId.get(id)!,
-            position: index,
-          })),
+          applyAssignmentsToElements(previous, assignments),
         );
       }
 
@@ -143,6 +162,36 @@ export function useReorderElements(accessToken: string | undefined) {
           context.previous,
         );
       }
+    },
+    onSettled: (_data, _error, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: pageElementsQueryKey(variables.pageId),
+      });
+    },
+  });
+}
+
+export function useDeleteElement(accessToken: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      pageId,
+      elementId,
+    }: {
+      pageId: string;
+      elementId: string;
+    }) => {
+      if (!accessToken) {
+        throw new Error("Not signed in");
+      }
+      return deleteElement(accessToken, pageId, elementId);
+    },
+    onSuccess: (elements, variables) => {
+      queryClient.setQueryData(
+        pageElementsQueryKey(variables.pageId),
+        elements,
+      );
     },
     onSettled: (_data, _error, variables) => {
       void queryClient.invalidateQueries({

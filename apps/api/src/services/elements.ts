@@ -1,5 +1,8 @@
 import {
+  assignmentsFromFlatOrder,
   createElementBodySchema,
+  flattenPageElements,
+  indexAfterSectionBlock,
   reorderElementsBodySchema,
   updateElementBodySchema,
   type PageElement,
@@ -10,21 +13,71 @@ import { HttpError } from "../http.js";
 import { getOwnedPage } from "./pages.js";
 import { assertOwnedImage } from "./storage.js";
 
-async function nextElementPosition(pageId: string): Promise<number> {
+async function assertSectionInPage(
+  pageId: string,
+  sectionId: string,
+): Promise<void> {
   const { data, error } = await db
     .from("page_elements")
-    .select("position")
+    .select("id, type")
+    .eq("id", sectionId)
     .eq("page_id", pageId)
-    .order("position", { ascending: false })
-    .limit(1)
     .maybeSingle();
+
+  if (error) {
+    console.error(error);
+    throw new HttpError(500, "Failed to load section");
+  }
+
+  if (!data || data.type !== "section") {
+    throw new HttpError(400, "Invalid section");
+  }
+}
+
+async function loadPageElements(pageId: string): Promise<PageElement[]> {
+  const { data, error } = await db
+    .from("page_elements")
+    .select("*")
+    .eq("page_id", pageId)
+    .order("position", { ascending: true });
 
   if (error) {
     console.error(error);
     throw new HttpError(500, "Failed to load elements");
   }
 
-  return (data?.position ?? -1) + 1;
+  return data ?? [];
+}
+
+async function applyFlatOrder(
+  pageId: string,
+  flatIds: string[],
+  elements: PageElement[],
+): Promise<void> {
+  const byId = new Map(elements.map((element) => [element.id, element]));
+  const assignments = assignmentsFromFlatOrder(flatIds, byId);
+
+  if (assignments.length !== flatIds.length) {
+    throw new HttpError(400, "Invalid element order");
+  }
+
+  const updates = assignments.map((assignment) =>
+    db
+      .from("page_elements")
+      .update({
+        parent_id: assignment.parent_id,
+        position: assignment.position,
+      })
+      .eq("id", assignment.id)
+      .eq("page_id", pageId),
+  );
+
+  const results = await Promise.all(updates);
+  const updateError = results.find((result) => result.error)?.error;
+  if (updateError) {
+    console.error(updateError);
+    throw new HttpError(500, "Failed to reorder elements");
+  }
 }
 
 export async function createElement(
@@ -34,7 +87,44 @@ export async function createElement(
 ): Promise<PageElement> {
   await getOwnedPage(uid, pageId);
   const parsed = createElementBodySchema.parse(body);
-  const position = await nextElementPosition(pageId);
+  const existing = await loadPageElements(pageId);
+  const flat = flattenPageElements(existing).map((element) => element.id);
+  const byId = new Map(existing.map((element) => [element.id, element]));
+
+  if (parsed.type === "section") {
+    const { data, error } = await db
+      .from("page_elements")
+      .insert({
+        page_id: pageId,
+        type: "section",
+        position: 0,
+        text: parsed.text,
+        parent_id: null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error(error);
+      throw new HttpError(500, "Failed to create element");
+    }
+
+    const nextFlat = [...flat, data.id];
+    await applyFlatOrder(pageId, nextFlat, [...existing, data]);
+    const updated = (await loadPageElements(pageId)).find(
+      (element) => element.id === data.id,
+    );
+    return updated ?? data;
+  }
+
+  if (parsed.target_section_id) {
+    await assertSectionInPage(pageId, parsed.target_section_id);
+  }
+
+  const insertAt =
+    parsed.target_section_id === undefined
+      ? flat.length
+      : indexAfterSectionBlock(flat, parsed.target_section_id, byId) + 1;
 
   if (parsed.type === "image") {
     await assertOwnedImage(uid, parsed.image_path);
@@ -44,7 +134,8 @@ export async function createElement(
       .insert({
         page_id: pageId,
         type: "image",
-        position,
+        position: 0,
+        parent_id: null,
         image_path: parsed.image_path,
         caption: parsed.caption ?? "",
       })
@@ -56,7 +147,16 @@ export async function createElement(
       throw new HttpError(500, "Failed to create element");
     }
 
-    return data;
+    const nextFlat = [
+      ...flat.slice(0, insertAt),
+      data.id,
+      ...flat.slice(insertAt),
+    ];
+    await applyFlatOrder(pageId, nextFlat, [...existing, data]);
+    const updated = (await loadPageElements(pageId)).find(
+      (element) => element.id === data.id,
+    );
+    return updated ?? data;
   }
 
   const { data, error } = await db
@@ -64,7 +164,8 @@ export async function createElement(
     .insert({
       page_id: pageId,
       type: "text",
-      position,
+      position: 0,
+      parent_id: null,
       text: parsed.text,
     })
     .select()
@@ -75,7 +176,16 @@ export async function createElement(
     throw new HttpError(500, "Failed to create element");
   }
 
-  return data;
+  const nextFlat = [
+    ...flat.slice(0, insertAt),
+    data.id,
+    ...flat.slice(insertAt),
+  ];
+  await applyFlatOrder(pageId, nextFlat, [...existing, data]);
+  const updated = (await loadPageElements(pageId)).find(
+    (element) => element.id === data.id,
+  );
+  return updated ?? data;
 }
 
 export async function updateElement(
@@ -104,7 +214,7 @@ export async function updateElement(
   }
 
   if ("text" in parsed) {
-    if (existing.type !== "text") {
+    if (existing.type !== "text" && existing.type !== "section") {
       throw new HttpError(400, "Cannot update text on this element");
     }
 
@@ -152,17 +262,12 @@ export async function reorderElements(
   await getOwnedPage(uid, pageId);
   const parsed = reorderElementsBodySchema.parse(body);
 
-  const { data: existing, error: loadError } = await db
-    .from("page_elements")
-    .select("id")
-    .eq("page_id", pageId);
-
-  if (loadError) {
-    console.error(loadError);
-    throw new HttpError(500, "Failed to load elements");
+  if (new Set(parsed.element_ids).size !== parsed.element_ids.length) {
+    throw new HttpError(400, "Invalid element order");
   }
 
-  const existingIds = new Set((existing ?? []).map((row) => row.id));
+  const existing = await loadPageElements(pageId);
+  const existingIds = new Set(existing.map((element) => element.id));
 
   if (
     parsed.element_ids.length !== existingIds.size ||
@@ -171,31 +276,50 @@ export async function reorderElements(
     throw new HttpError(400, "Invalid element order");
   }
 
-  const updates = parsed.element_ids.map((id, index) =>
-    db
-      .from("page_elements")
-      .update({ position: index })
-      .eq("id", id)
-      .eq("page_id", pageId),
-  );
+  await applyFlatOrder(pageId, parsed.element_ids, existing);
+  return loadPageElements(pageId);
+}
 
-  const results = await Promise.all(updates);
-  const updateError = results.find((result) => result.error)?.error;
-  if (updateError) {
-    console.error(updateError);
-    throw new HttpError(500, "Failed to reorder elements");
+export async function deleteElement(
+  uid: string,
+  pageId: string,
+  elementId: string,
+): Promise<PageElement[]> {
+  await getOwnedPage(uid, pageId);
+
+  const { data: existing, error: loadError } = await db
+    .from("page_elements")
+    .select("id")
+    .eq("id", elementId)
+    .eq("page_id", pageId)
+    .maybeSingle();
+
+  if (loadError) {
+    console.error(loadError);
+    throw new HttpError(500, "Failed to load element");
   }
 
-  const { data, error } = await db
+  if (!existing) {
+    throw new HttpError(404, "Element not found");
+  }
+
+  const { error } = await db
     .from("page_elements")
-    .select("*")
-    .eq("page_id", pageId)
-    .order("position", { ascending: true });
+    .delete()
+    .eq("id", elementId)
+    .eq("page_id", pageId);
 
   if (error) {
     console.error(error);
-    throw new HttpError(500, "Failed to load elements");
+    throw new HttpError(500, "Failed to delete element");
   }
 
-  return data;
+  const remaining = await loadPageElements(pageId);
+  if (remaining.length === 0) {
+    return remaining;
+  }
+
+  const flat = flattenPageElements(remaining).map((element) => element.id);
+  await applyFlatOrder(pageId, flat, remaining);
+  return loadPageElements(pageId);
 }

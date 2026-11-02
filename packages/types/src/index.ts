@@ -1,3 +1,12 @@
+export {
+  applyAssignmentsToElements,
+  assignmentsFromFlatOrder,
+  flattenPageElements,
+  getLastRootSectionId,
+  groupElementsByParent,
+  indexAfterSectionBlock,
+  type ElementAssignment,
+} from "./pageElementOrder.js";
 export type { Database, Json } from "./database.gen.js";
 export type {
   Tables,
@@ -17,6 +26,7 @@ export {
 export {
   createElementBodySchema,
   createImageElementBodySchema,
+  createSectionElementBodySchema,
   createTextElementBodySchema,
   updateElementBodySchema,
   reorderElementsBodySchema,

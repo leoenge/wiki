@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { requireAuth } from "../middleware/requireAuth.js";
-import { createElement, reorderElements, updateElement } from "../services/elements.js";
+import { createElement, deleteElement, reorderElements, updateElement } from "../services/elements.js";
 import { createPage, updatePage } from "../services/pages.js";
 
 export const pagesRouter = Router();
@@ -62,6 +62,23 @@ pagesRouter.patch(
         req.body,
       );
       res.json(element);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+pagesRouter.delete(
+  "/:pageId/elements/:elementId",
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const elements = await deleteElement(
+        req.uid!,
+        req.params.pageId,
+        req.params.elementId,
+      );
+      res.json(elements);
     } catch (error) {
       next(error);
     }

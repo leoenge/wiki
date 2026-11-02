@@ -1,9 +1,10 @@
 import { Plus } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import type { Page, PageElement } from "@ww/types";
+import { getLastRootSectionId } from "@ww/types";
 
 import { useCreateElement } from "../api/elements.js";
 import { useUpdatePage } from "../api/pages.js";
@@ -95,6 +96,12 @@ export function PageView() {
 
   const [chooseElementOpen, setChooseElementOpen] = useState(false);
   const [addImageOpen, setAddImageOpen] = useState(false);
+  const [collapsedSectionIds, setCollapsedSectionIds] = useState<
+    Record<string, true>
+  >({});
+  const [addTargetSectionId, setAddTargetSectionId] = useState<string | null>(
+    null,
+  );
   const [imageSubmitting, setImageSubmitting] = useState(false);
   const [mainUploading, setMainUploading] = useState(false);
 
@@ -111,6 +118,72 @@ export function PageView() {
     queryFn: () => fetchPageElements(page!.id),
     enabled: Boolean(page),
   });
+
+  const elements = elementsQuery.data ?? [];
+
+  const lastRootSectionId = useMemo(
+    () => getLastRootSectionId(elements),
+    [elements],
+  );
+
+  useEffect(() => {
+    setCollapsedSectionIds((previous) => {
+      const sectionIds = new Set(
+        elements
+          .filter((element) => element.type === "section")
+          .map((element) => element.id),
+      );
+      const next = { ...previous };
+      let changed = false;
+
+      for (const id of Object.keys(next)) {
+        if (!sectionIds.has(id)) {
+          delete next[id];
+          changed = true;
+        }
+      }
+
+      return changed ? next : previous;
+    });
+  }, [elements]);
+
+  useEffect(() => {
+    if (
+      addTargetSectionId &&
+      elements.some(
+        (element) =>
+          element.id === addTargetSectionId && element.type === "section",
+      )
+    ) {
+      return;
+    }
+
+    setAddTargetSectionId(lastRootSectionId);
+  }, [elements, lastRootSectionId, addTargetSectionId]);
+
+  function toggleSectionCollapsed(sectionId: string) {
+    setCollapsedSectionIds((previous) => {
+      if (previous[sectionId]) {
+        const next = { ...previous };
+        delete next[sectionId];
+        return next;
+      }
+      return { ...previous, [sectionId]: true };
+    });
+  }
+
+  function addTargetSectionIdForContent(): string | undefined {
+    if (
+      addTargetSectionId &&
+      elements.some(
+        (element) =>
+          element.id === addTargetSectionId && element.type === "section",
+      )
+    ) {
+      return addTargetSectionId;
+    }
+    return undefined;
+  }
 
   async function onMainImagePick(file: File) {
     if (!user || !page) {
@@ -136,8 +209,33 @@ export function PageView() {
 
     await createElement.mutateAsync({
       pageId: page.id,
-      body: { type: "text", text: "" },
+      body: {
+        type: "text",
+        text: "",
+        target_section_id: addTargetSectionIdForContent(),
+      },
     });
+  }
+
+  async function onAddSectionElement() {
+    if (!page) {
+      return;
+    }
+
+    const section = await createElement.mutateAsync({
+      pageId: page.id,
+      body: { type: "section", text: "" },
+    });
+
+    const rootSections = elements.filter(
+      (element) => element.type === "section" && element.parent_id === null,
+    );
+    const nextCollapsed: Record<string, true> = {};
+    for (const existing of rootSections) {
+      nextCollapsed[existing.id] = true;
+    }
+    setCollapsedSectionIds(nextCollapsed);
+    setAddTargetSectionId(section.id);
   }
 
   async function onAddImageElement(payload: { file: File; caption: string }) {
@@ -154,6 +252,7 @@ export function PageView() {
           type: "image",
           image_path: path,
           caption: payload.caption,
+          target_section_id: addTargetSectionIdForContent(),
         },
       });
       setAddImageOpen(false);
@@ -195,8 +294,10 @@ export function PageView() {
           <section className="mt-10">
             <PageElementsList
               pageId={page.id}
-              elements={elementsQuery.data ?? []}
+              elements={elements}
               accessToken={accessToken}
+              collapsedSectionIds={collapsedSectionIds}
+              onToggleSectionCollapsed={toggleSectionCollapsed}
             />
           </section>
 
@@ -211,6 +312,7 @@ export function PageView() {
         onClose={() => setChooseElementOpen(false)}
         onChooseImage={() => setAddImageOpen(true)}
         onChooseText={() => void onAddTextElement()}
+        onChooseSection={() => void onAddSectionElement()}
       />
 
       <AddImageDialog
