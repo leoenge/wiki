@@ -1,9 +1,11 @@
+import { apiUrl } from "./baseUrl.js";
+
 export async function apiFetch<T>(
   path: string,
   accessToken: string,
   init?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     ...init,
     headers: {
       "Content-Type": "application/json",

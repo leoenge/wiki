@@ -1,5 +1,6 @@
 import express from "express";
 
+import { cors } from "./middleware/cors.js";
 import { authenticate } from "./middleware/authenticate.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { healthRouter } from "./routes/health.js";
@@ -8,6 +9,7 @@ import { pagesRouter } from "./routes/pages.js";
 export function createApp() {
   const app = express();
 
+  app.use(cors);
   app.use(express.json());
   app.use(authenticate);
 

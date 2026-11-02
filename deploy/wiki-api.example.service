@@ -1,0 +1,15 @@
+# Copy to /etc/systemd/system/wiki-api.service, adjust paths, then:
+#   sudo systemctl enable --now wiki-api
+[Unit]
+Description=Wiki API
+After=network.target docker.service
+
+[Service]
+User=leo
+WorkingDirectory=/home/leo/src/wiki
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/env pnpm start
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

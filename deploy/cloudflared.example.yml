@@ -1,0 +1,14 @@
+# Only needed if the tunnel uses a local config file. If routes are managed in the
+# Cloudflare dashboard, add the three hostnames there instead.
+tunnel: <TUNNEL_ID>
+credentials-file: /home/leo/.cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  - hostname: wiki.matchur.lol
+    service: http://127.0.0.1:4174
+  - hostname: wikiapi.matchur.lol
+    service: http://127.0.0.1:8001
+  - hostname: wikisupabase.matchur.lol
+    service: http://127.0.0.1:54331
+  # Keep the existing matchur entries here as well.
+  - service: http_status:404

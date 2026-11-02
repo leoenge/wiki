@@ -1,0 +1,15 @@
+# Serves the built web app (apps/web/dist) on localhost for the Cloudflare tunnel.
+# Run from the repo root: caddy run --config deploy/Caddyfile
+{
+	auto_https off
+	admin off
+}
+
+# Port 4174, since the matchur project uses 4173.
+:4174 {
+	bind 127.0.0.1
+	root * apps/web/dist
+	encode gzip
+	try_files {path} /index.html
+	file_server
+}

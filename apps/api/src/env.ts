@@ -18,5 +18,11 @@ export function requireEnv(name: string): string {
 export const env = {
   supabaseUrl: requireEnv("SUPABASE_URL"),
   supabaseSecretKey: requireEnv("SUPABASE_SECRET_KEY"),
+  corsOrigins: (
+    process.env.CORS_ORIGINS ?? "https://wiki.matchur.lol,http://localhost:5173,http://127.0.0.1:5173"
+  )
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean),
   apiPort: Number(process.env.API_PORT ?? "8001"),
 };
