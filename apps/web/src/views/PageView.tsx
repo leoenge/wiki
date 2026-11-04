@@ -275,6 +275,10 @@ function LoadedPageView({
     editor.addTextElementAt(insertFlatIndex);
   }
 
+  function onAddMapElement() {
+    editor.addMapElementAt(insertFlatIndex);
+  }
+
   function onAddSectionElement() {
     const section = editor.addSectionElementAt(insertFlatIndex);
     const rootSections = displayElements.filter(
@@ -371,6 +375,7 @@ function LoadedPageView({
           collapsedSectionIds={collapsedSectionIds}
           onToggleSectionCollapsed={toggleSectionCollapsed}
           onUpdateElementText={isEditing ? editor.updateElementText : undefined}
+          onUpdateMapPlaces={isEditing ? editor.updateMapPlaces : undefined}
           onDeleteElement={isEditing ? editor.deleteElementById : undefined}
           onReorderToFlatIds={isEditing ? editor.reorderToFlatIds : undefined}
           onInsertAtFlatIndex={isEditing ? openAddMenuAtFlatIndex : undefined}
@@ -390,6 +395,10 @@ function LoadedPageView({
         }}
         onChooseSection={() => {
           onAddSectionElement();
+          setChooseElementOpen(false);
+        }}
+        onChooseMap={() => {
+          onAddMapElement();
           setChooseElementOpen(false);
         }}
       />

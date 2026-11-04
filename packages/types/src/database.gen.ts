@@ -41,14 +41,14 @@ isOneToOne: false
                   ]
                 },"page_elements": {
                   Row: {
-                    "caption": string | null,"created_at": string,"id": string,"image_id": string | null,"image_path": string | null,"page_id": string,"parent_id": string | null,"position": number,"text": string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at": string
+                    "caption": string | null,"created_at": string,"id": string,"image_id": string | null,"image_path": string | null,"page_id": string,"parent_id": string | null,"places": Json | null,"position": number,"text": string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_id"?: string | null,"image_path"?: string | null,"page_id": string,"parent_id"?: string | null,"position": number,"text"?: string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at"?: string
+                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_id"?: string | null,"image_path"?: string | null,"page_id": string,"parent_id"?: string | null,"places"?: Json | null,"position": number,"text"?: string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at"?: string
                   }
                   Update: {
-                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_id"?: string | null,"image_path"?: string | null,"page_id"?: string,"parent_id"?: string | null,"position"?: number,"text"?: string | null,"type"?: Database["public"]['Enums']["page_element_type"],"updated_at"?: string
+                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_id"?: string | null,"image_path"?: string | null,"page_id"?: string,"parent_id"?: string | null,"places"?: Json | null,"position"?: number,"text"?: string | null,"type"?: Database["public"]['Enums']["page_element_type"],"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -100,7 +100,7 @@ isOneToOne: false
             [_ in never]: never
           }
           Enums: {
-            "page_element_type": "image"|"text"|"section"
+            "page_element_type": "image"|"text"|"section"|"map"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -216,7 +216,7 @@ export type CompositeTypes<
 export const Constants = {
   "public": {
           Enums: {
-            "page_element_type": ["image", "text", "section"]
+            "page_element_type": ["image", "text", "section", "map"]
           }
         }
 } as const

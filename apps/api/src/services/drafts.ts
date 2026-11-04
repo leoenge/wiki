@@ -3,6 +3,7 @@ import {
   flattenPageElements,
   pageDraftContentSchema,
   upsertPageDraftBodySchema,
+  assertUniqueMapPlaceIds,
   type PageDraft,
   type PageDraftContent,
   type PageElement,
@@ -148,6 +149,17 @@ function validateDraftContent(content: PageDraftContent, uid: string): void {
       }
       assertImagePathPrefix(uid, element.image_path);
     }
+
+    if (element.type === "map") {
+      if (!element.places) {
+        throw new HttpError(400, "Invalid draft content");
+      }
+      try {
+        assertUniqueMapPlaceIds(element.places);
+      } catch {
+        throw new HttpError(400, "Invalid draft content");
+      }
+    }
   }
 
   if (content.main_image_path) {
@@ -262,6 +274,7 @@ export async function publishPageDraft(
         element.type === "image" && element.image_path
           ? (imageIdByPath.get(element.image_path) ?? null)
           : null,
+      places: element.type === "map" ? element.places! : null,
     };
 
     if (existingIds.has(element.id)) {
@@ -298,6 +311,7 @@ export async function publishPageDraft(
     caption: element.caption ?? null,
     image_path: element.image_path ?? null,
     image_id: null,
+    places: element.type === "map" ? (element.places ?? []) : null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }));

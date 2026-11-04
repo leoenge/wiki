@@ -23,7 +23,7 @@ import {
 } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
-import type { PageElement } from "@ww/types";
+import type { MapPlace, PageElement } from "@ww/types";
 
 import { useAuth } from "../../lib/auth/AuthProvider.js";
 import { contributorNameForImagePath } from "../../lib/userDisplay.js";
@@ -34,6 +34,8 @@ import {
   visibleFlatIds,
 } from "../../lib/pageElementsTree.js";
 import { StorageImage } from "../StorageImage.js";
+import { MapElementEditor } from "./MapElementEditor.js";
+import { MapElementView } from "./MapElementView.js";
 import { SectionHeadingEditor } from "./SectionHeadingEditor.js";
 import { ExpandedImageViewer } from "./ExpandedImageViewer.js";
 import { SwipeToDeleteRow } from "./SwipeToDeleteRow.js";
@@ -45,6 +47,7 @@ type PageElementsListProps = {
   collapsedSectionIds: Readonly<Record<string, true>>;
   onToggleSectionCollapsed: (sectionId: string) => void;
   onUpdateElementText?: (elementId: string, text: string) => void;
+  onUpdateMapPlaces?: (elementId: string, places: MapPlace[]) => void;
   onDeleteElement?: (elementId: string) => void;
   onReorderToFlatIds?: (flatIds: string[]) => void;
   onInsertAtFlatIndex?: (flatInsertIndex: number) => void;
@@ -122,10 +125,7 @@ type ElementRowProps = {
   onDelete: (elementId: string) => void;
   onExpandImage: (payload: { path: string; caption: string }) => void;
   onUpdateElementText?: (elementId: string, text: string) => void;
-  dragHandleProps?: {
-    attributes: object;
-    listeners: object | undefined;
-  };
+  onUpdateMapPlaces?: (elementId: string, places: MapPlace[]) => void;
   isDragging?: boolean;
   setNodeRef?: (node: HTMLElement | null) => void;
   style?: CSSProperties;
@@ -138,7 +138,7 @@ function ElementRowContent({
   onToggleSectionCollapsed,
   onExpandImage,
   onUpdateElementText,
-  dragHandleProps,
+  onUpdateMapPlaces,
 }: Pick<
   ElementRowProps,
   | "element"
@@ -147,35 +147,12 @@ function ElementRowContent({
   | "onToggleSectionCollapsed"
   | "onExpandImage"
   | "onUpdateElementText"
-  | "dragHandleProps"
+  | "onUpdateMapPlaces"
 >) {
   const isSection = element.type === "section";
   const expanded = isSection && !collapsedSectionIds[element.id];
-
   return (
     <div className="flex items-start gap-1">
-      {editable && dragHandleProps ? (
-        <button
-          type="button"
-          data-swipe-exclude
-          className={
-            isSection
-              ? "text-muted hover:text-foreground shrink-0 touch-none cursor-grab py-3 active:cursor-grabbing"
-              : "text-muted hover:text-foreground shrink-0 touch-none cursor-grab py-4 active:cursor-grabbing"
-          }
-          aria-label="Drag to reorder"
-          {...(dragHandleProps.attributes as Record<string, unknown>)}
-          {...(dragHandleProps.listeners as
-            | Record<string, unknown>
-            | undefined)}
-        >
-          <DotsSixVerticalIcon
-            size={22}
-            weight="bold"
-            className="text-neutral-300"
-          />
-        </button>
-      ) : null}
       {isSection ? (
         <button
           type="button"
@@ -204,6 +181,15 @@ function ElementRowContent({
             editable={editable}
             onTextChange={onUpdateElementText}
           />
+        ) : element.type === "map" ? (
+          editable && onUpdateMapPlaces ? (
+            <MapElementEditor
+              element={element}
+              onPlacesChange={onUpdateMapPlaces}
+            />
+          ) : (
+            <MapElementView element={element} />
+          )
         ) : (
           <ImageElementRow element={element} onExpand={onExpandImage} />
         )}
@@ -236,7 +222,7 @@ function SortableRow(props: ElementRowProps) {
       onToggleSectionCollapsed={props.onToggleSectionCollapsed}
       onExpandImage={props.onExpandImage}
       onUpdateElementText={props.onUpdateElementText}
-      dragHandleProps={{ attributes, listeners: listeners ?? undefined }}
+      onUpdateMapPlaces={props.onUpdateMapPlaces}
     />
   );
 
@@ -244,8 +230,29 @@ function SortableRow(props: ElementRowProps) {
     <div
       ref={setNodeRef}
       style={style}
-      className={isDragging ? "relative z-10 opacity-90" : undefined}
+      className={isDragging ? "relative z-10 opacity-90" : "relative"}
     >
+      {props.editable ? (
+        <button
+          type="button"
+          className={`text-muted hover:text-foreground absolute right-full z-10 mr-0.5 touch-none cursor-grab active:cursor-grabbing ${
+            props.element.type === "section"
+              ? "top-0 py-4"
+              : props.element.type === "map"
+                ? "top-0 py-3"
+                : "top-0 py-5"
+          }`}
+          aria-label="Drag to reorder"
+          {...(attributes as unknown as Record<string, unknown>)}
+          {...(listeners as Record<string, unknown> | undefined)}
+        >
+          <DotsSixVerticalIcon
+            size={18}
+            weight="bold"
+            className="text-neutral-300"
+          />
+        </button>
+      ) : null}
       {props.editable ? (
         <SwipeToDeleteRow
           elementId={props.element.id}
@@ -270,6 +277,7 @@ function StaticRow(props: ElementRowProps) {
       collapsedSectionIds={props.collapsedSectionIds}
       onToggleSectionCollapsed={props.onToggleSectionCollapsed}
       onExpandImage={props.onExpandImage}
+      onUpdateMapPlaces={props.onUpdateMapPlaces}
     />
   );
 }
@@ -280,6 +288,7 @@ export function PageElementsList({
   collapsedSectionIds,
   onToggleSectionCollapsed,
   onUpdateElementText,
+  onUpdateMapPlaces,
   onDeleteElement,
   onReorderToFlatIds,
   onInsertAtFlatIndex,
@@ -373,6 +382,7 @@ export function PageElementsList({
     onExpandImage: (payload: { path: string; caption: string }) =>
       setExpandedImage(payload),
     onUpdateElementText,
+    onUpdateMapPlaces,
   };
 
   const showInsertSlots = editable && Boolean(onInsertAtFlatIndex);

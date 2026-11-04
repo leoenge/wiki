@@ -1,5 +1,6 @@
 import {
   assignmentsFromFlatOrder,
+  assertUniqueMapPlaceIds,
   createElementBodySchema,
   createImageElementsBatchBodySchema,
   flattenPageElements,
@@ -167,6 +168,36 @@ export async function createElement(
     return updated ?? data;
   }
 
+  if (parsed.type === "map") {
+    const { data, error } = await db
+      .from("page_elements")
+      .insert({
+        page_id: pageId,
+        type: "map",
+        position: 0,
+        parent_id: null,
+        places: parsed.places,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error(error);
+      throw new HttpError(500, "Failed to create element");
+    }
+
+    const nextFlat = [
+      ...flat.slice(0, insertAt),
+      data.id,
+      ...flat.slice(insertAt),
+    ];
+    await applyFlatOrder(pageId, nextFlat, [...existing, data]);
+    const updated = (await loadPageElements(pageId)).find(
+      (element) => element.id === data.id,
+    );
+    return updated ?? data;
+  }
+
   const { data, error } = await db
     .from("page_elements")
     .insert({
@@ -299,6 +330,33 @@ export async function updateElement(
     const { data, error } = await db
       .from("page_elements")
       .update({ text: parsed.text })
+      .eq("id", elementId)
+      .eq("page_id", pageId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(error);
+      throw new HttpError(500, "Failed to update element");
+    }
+
+    return data;
+  }
+
+  if ("places" in parsed) {
+    if (existing.type !== "map") {
+      throw new HttpError(400, "Cannot update places on this element");
+    }
+
+    try {
+      assertUniqueMapPlaceIds(parsed.places);
+    } catch {
+      throw new HttpError(400, "Invalid places");
+    }
+
+    const { data, error } = await db
+      .from("page_elements")
+      .update({ places: parsed.places })
       .eq("id", elementId)
       .eq("page_id", pageId)
       .select()

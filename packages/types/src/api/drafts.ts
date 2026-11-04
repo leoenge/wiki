@@ -1,7 +1,12 @@
 import { z } from "zod";
 
+import {
+  assertUniqueMapPlaceIds,
+  mapPlacesSchema,
+  parseMapPlaces,
+  type PageElement,
+} from "./elements.js";
 import { imageMetadataFieldsSchema } from "./images.js";
-import type { PageElement } from "./elements.js";
 import type { Page } from "./pages.js";
 import type { Tables } from "../helpers.js";
 import {
@@ -12,16 +17,45 @@ import {
 
 export type PageDraft = Tables<"page_drafts">;
 
-export const draftPageElementSchema = z.object({
-  id: z.string().uuid(),
-  type: z.enum(["image", "text", "section"]),
-  parent_id: z.string().uuid().nullable(),
-  position: z.number().int().nonnegative(),
-  text: z.string().nullable(),
-  caption: z.string().nullable().optional(),
-  image_path: z.string().nullable().optional(),
-  image_meta: imageMetadataFieldsSchema.partial().optional(),
-});
+export const draftPageElementSchema = z
+  .object({
+    id: z.string().uuid(),
+    type: z.enum(["image", "text", "section", "map"]),
+    parent_id: z.string().uuid().nullable(),
+    position: z.number().int().nonnegative(),
+    text: z.string().nullable(),
+    caption: z.string().nullable().optional(),
+    image_path: z.string().nullable().optional(),
+    image_meta: imageMetadataFieldsSchema.partial().optional(),
+    places: mapPlacesSchema.optional(),
+  })
+  .superRefine((element, context) => {
+    if (element.type === "map") {
+      if (element.places === undefined) {
+        context.addIssue({
+          code: "custom",
+          message: "Map elements require places",
+          path: ["places"],
+        });
+      } else {
+        try {
+          assertUniqueMapPlaceIds(element.places);
+        } catch {
+          context.addIssue({
+            code: "custom",
+            message: "Duplicate map place id",
+            path: ["places"],
+          });
+        }
+      }
+    } else if (element.places !== undefined) {
+      context.addIssue({
+        code: "custom",
+        message: "Only map elements may have places",
+        path: ["places"],
+      });
+    }
+  });
 
 export const pageDraftContentSchema = z.object({
   main_image_path: z.string().nullable(),
@@ -36,7 +70,7 @@ export type PageDraftContent = z.infer<typeof pageDraftContentSchema>;
 export type UpsertPageDraftBody = z.infer<typeof upsertPageDraftBodySchema>;
 
 export function pageElementToDraftElement(element: PageElement): DraftPageElement {
-  return {
+  const base = {
     id: element.id,
     type: element.type,
     parent_id: element.parent_id,
@@ -45,6 +79,15 @@ export function pageElementToDraftElement(element: PageElement): DraftPageElemen
     caption: element.caption,
     image_path: element.image_path,
   };
+
+  if (element.type === "map") {
+    return {
+      ...base,
+      places: parseMapPlaces(element.places),
+    };
+  }
+
+  return base;
 }
 
 export function buildPageDraftContent(
@@ -85,6 +128,7 @@ export function draftContentToPageElements(
     caption: element.caption ?? null,
     image_path: element.image_path ?? null,
     image_id: null,
+    places: element.type === "map" ? (element.places ?? []) : null,
     created_at: now,
     updated_at: now,
   }));

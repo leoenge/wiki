@@ -7,6 +7,7 @@ import {
   draftContentToPageElements,
   flattenPageElements,
   type ImageMetadataFields,
+  type MapPlace,
   type Page,
   type PageDraftContent,
   type PageElement,
@@ -61,7 +62,7 @@ function newElement(
     Partial<
       Pick<
         PageElement,
-        "text" | "caption" | "image_path" | "parent_id" | "position"
+        "text" | "caption" | "image_path" | "parent_id" | "position" | "places"
       >
     >,
 ): PageElement {
@@ -76,6 +77,7 @@ function newElement(
     caption: partial.caption ?? null,
     image_path: partial.image_path ?? null,
     image_id: null,
+    places: partial.places ?? null,
     created_at: now,
     updated_at: now,
   };
@@ -358,6 +360,35 @@ export function useDraftEditor({
     [page.id],
   );
 
+  const addMapElementAt = useCallback(
+    (insertAtFlatIndex: number) => {
+      const created = newElement(page.id, { type: "map", places: [] });
+      setElements((previous) => {
+        const flat = flattenPageElements(previous).map((element) => element.id);
+        const insertAt = Math.max(0, Math.min(insertAtFlatIndex, flat.length));
+        const nextFlat = [
+          ...flat.slice(0, insertAt),
+          created.id,
+          ...flat.slice(insertAt),
+        ];
+        return applyFlatOrderToElements([...previous, created], nextFlat);
+      });
+      return created;
+    },
+    [page.id],
+  );
+
+  const updateMapPlaces = useCallback(
+    (elementId: string, places: MapPlace[]) => {
+      setElements((previous) =>
+        previous.map((element) =>
+          element.id === elementId ? { ...element, places } : element,
+        ),
+      );
+    },
+    [],
+  );
+
   const resetToLive = useCallback(() => {
     clearScheduledSave();
     setMainImagePathState(liveMainImagePath);
@@ -379,6 +410,8 @@ export function useDraftEditor({
     addTextElementAt,
     addSectionElementAt,
     addImageElementsAt,
+    addMapElementAt,
+    updateMapPlaces,
     flushSave,
     saveNow,
     resetToLive,

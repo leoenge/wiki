@@ -1,9 +1,42 @@
 import { z } from "zod";
 
 import { imageMetadataFieldsSchema } from "./images.js";
+import type { Json } from "../database.gen.js";
 import type { Tables } from "../helpers.js";
 
 export type PageElement = Tables<"page_elements">;
+
+export const MAX_MAP_PLACES = 100;
+
+export const mapPlaceSchema = z.object({
+  id: z.string().uuid(),
+  google_place_id: z.string().min(1).max(500),
+  name: z.string().min(1).max(500),
+  address: z.string().max(500).nullable(),
+  lat: z.number().finite(),
+  lng: z.number().finite(),
+});
+
+export const mapPlacesSchema = z.array(mapPlaceSchema).max(MAX_MAP_PLACES);
+
+export type MapPlace = z.infer<typeof mapPlaceSchema>;
+
+export function parseMapPlaces(value: Json | null | undefined): MapPlace[] {
+  if (value === null || value === undefined) {
+    return [];
+  }
+  return mapPlacesSchema.parse(value);
+}
+
+export function assertUniqueMapPlaceIds(places: MapPlace[]): void {
+  const ids = new Set<string>();
+  for (const place of places) {
+    if (ids.has(place.id)) {
+      throw new Error("Duplicate map place id");
+    }
+    ids.add(place.id);
+  }
+}
 
 const targetSectionIdSchema = z.string().uuid().optional();
 
@@ -37,15 +70,23 @@ export const createSectionElementBodySchema = z.object({
   text: z.string().trim().max(200).default(""),
 });
 
+export const createMapElementBodySchema = z.object({
+  type: z.literal("map"),
+  places: mapPlacesSchema.default([]),
+  target_section_id: targetSectionIdSchema,
+});
+
 export const createElementBodySchema = z.discriminatedUnion("type", [
   createImageElementBodySchema,
   createTextElementBodySchema,
   createSectionElementBodySchema,
+  createMapElementBodySchema,
 ]);
 
 export const updateElementBodySchema = z.union([
   z.object({ text: z.string().max(10000) }),
   z.object({ caption: z.string().trim().max(500) }),
+  z.object({ places: mapPlacesSchema }),
 ]);
 
 export const reorderElementsBodySchema = z.object({
