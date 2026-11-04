@@ -434,7 +434,7 @@ export function PageView() {
   const liveElements = elementsQuery.data ?? [];
 
   return (
-    <Container className="min-h-screen">
+    <Container className="min-h-screen pb-24">
       {pageQuery.isLoading ? (
         <p className="text-muted mt-10 text-sm">Loading</p>
       ) : pageQuery.error ? (
