@@ -68,7 +68,7 @@ export function CreatePageView() {
 
         <label className="block space-y-2">
           <span className="text-sm font-medium">Tag</span>
-          <div className="bg-surface flex items-center rounded-sm px-4 py-3">
+          <div className="bg-surface flex items-center rounded-xs px-4 py-3">
             <span className="text-muted text-base">/</span>
             <input
               value={tag}
@@ -81,9 +81,7 @@ export function CreatePageView() {
               required
             />
           </div>
-          {tagError ? (
-            <p className="text-sm text-red-600">{tagError}</p>
-          ) : null}
+          {tagError ? <p className="text-sm text-red-600">{tagError}</p> : null}
         </label>
 
         <div className="mt-auto pt-8">

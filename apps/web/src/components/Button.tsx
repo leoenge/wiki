@@ -20,18 +20,16 @@ export function buttonStyles({
 }: ButtonStyleOptions = {}): string {
   return joinClasses([
     "inline-flex items-center justify-center gap-2 text-sm font-medium transition-opacity",
-    pill ? "rounded-full" : "rounded-sm",
+    pill ? "rounded-full" : "rounded-xs",
     width === "full" ? "w-full" : "",
     variant === "primary" && "bg-foreground text-background px-5 py-3",
-    variant === "secondary" &&
-      "bg-surface-strong text-foreground px-5 py-3",
+    variant === "secondary" && "bg-surface-strong text-foreground px-5 py-3",
     variant === "anonymous" && "text-foreground px-0 py-2",
     "disabled:opacity-50",
   ]);
 }
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
-  ButtonStyleOptions;
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & ButtonStyleOptions;
 
 export function Button({
   variant = "primary",

@@ -19,16 +19,17 @@ import {
   CaretDownIcon,
   CaretRightIcon,
   DotsSixVerticalIcon,
+  PlusIcon,
 } from "@phosphor-icons/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 import type { PageElement } from "@ww/types";
 
-import { useDeleteElement, useReorderElements } from "../../api/elements.js";
 import { useAuth } from "../../lib/auth/AuthProvider.js";
 import { contributorNameForImagePath } from "../../lib/userDisplay.js";
 import {
   flatIdsFromElements,
+  flatInsertIndexFromVisibleSlot,
   mergeVisibleFlatOrder,
   visibleFlatIds,
 } from "../../lib/pageElementsTree.js";
@@ -39,12 +40,40 @@ import { SwipeToDeleteRow } from "./SwipeToDeleteRow.js";
 import { TextElementEditor } from "./TextElementEditor.js";
 
 type PageElementsListProps = {
-  pageId: string;
   elements: PageElement[];
-  accessToken: string | undefined;
+  editable: boolean;
   collapsedSectionIds: Readonly<Record<string, true>>;
   onToggleSectionCollapsed: (sectionId: string) => void;
+  onUpdateElementText?: (elementId: string, text: string) => void;
+  onDeleteElement?: (elementId: string) => void;
+  onReorderToFlatIds?: (flatIds: string[]) => void;
+  onInsertAtFlatIndex?: (flatInsertIndex: number) => void;
 };
+
+function ElementInsertSlot({
+  onClick,
+  className,
+}: {
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-swipe-exclude
+      className={[
+        "bg-surface/70 border border-surface-strong/80 text-foreground/70 hover:bg-surface pointer-events-auto flex size-8 items-center justify-center rounded-full shadow-[0_2px_10px_rgba(0,0,0,0.14)]",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      aria-label="Add element here"
+    >
+      <PlusIcon size={18} weight="bold" />
+    </button>
+  );
+}
 
 function ImageElementRow({
   element,
@@ -58,7 +87,7 @@ function ImageElementRow({
   }
 
   return (
-    <div className="bg-surface/50 flex min-w-0 flex-1 gap-4 rounded-sm">
+    <div className="bg-surface/50 flex min-w-0 flex-1 gap-4 rounded-xs">
       <button
         type="button"
         onClick={() =>
@@ -73,7 +102,7 @@ function ImageElementRow({
       >
         <StorageImage
           path={element.image_path}
-          className="size-40 rounded-sm object-cover"
+          className="size-40 rounded-xs object-cover"
         />
       </button>
       <div className="py-2">
@@ -83,29 +112,107 @@ function ImageElementRow({
   );
 }
 
-type SortableRowProps = {
+type ElementRowProps = {
   element: PageElement;
-  pageId: string;
+  editable: boolean;
   collapsedSectionIds: Readonly<Record<string, true>>;
   onToggleSectionCollapsed: (sectionId: string) => void;
   openSwipeElementId: string | null;
   onOpenSwipeChange: (elementId: string | null) => void;
   onDelete: (elementId: string) => void;
   onExpandImage: (payload: { path: string; caption: string }) => void;
+  onUpdateElementText?: (elementId: string, text: string) => void;
+  dragHandleProps?: {
+    attributes: object;
+    listeners: object | undefined;
+  };
+  isDragging?: boolean;
+  setNodeRef?: (node: HTMLElement | null) => void;
+  style?: CSSProperties;
 };
 
-function SortableRow({
+function ElementRowContent({
   element,
-  pageId,
+  editable,
   collapsedSectionIds,
   onToggleSectionCollapsed,
-  openSwipeElementId,
-  onOpenSwipeChange,
-  onDelete,
   onExpandImage,
-}: SortableRowProps) {
+  onUpdateElementText,
+  dragHandleProps,
+}: Pick<
+  ElementRowProps,
+  | "element"
+  | "editable"
+  | "collapsedSectionIds"
+  | "onToggleSectionCollapsed"
+  | "onExpandImage"
+  | "onUpdateElementText"
+  | "dragHandleProps"
+>) {
   const isSection = element.type === "section";
   const expanded = isSection && !collapsedSectionIds[element.id];
+
+  return (
+    <div className="flex items-start gap-1">
+      {editable && dragHandleProps ? (
+        <button
+          type="button"
+          data-swipe-exclude
+          className={
+            isSection
+              ? "text-muted hover:text-foreground shrink-0 touch-none cursor-grab py-3 active:cursor-grabbing"
+              : "text-muted hover:text-foreground shrink-0 touch-none cursor-grab py-4 active:cursor-grabbing"
+          }
+          aria-label="Drag to reorder"
+          {...(dragHandleProps.attributes as Record<string, unknown>)}
+          {...(dragHandleProps.listeners as
+            | Record<string, unknown>
+            | undefined)}
+        >
+          <DotsSixVerticalIcon
+            size={22}
+            weight="bold"
+            className="text-neutral-300"
+          />
+        </button>
+      ) : null}
+      {isSection ? (
+        <button
+          type="button"
+          data-swipe-exclude
+          onClick={() => onToggleSectionCollapsed(element.id)}
+          className="text-muted hover:text-foreground shrink-0 py-3"
+          aria-label={expanded ? "Collapse section" : "Expand section"}
+        >
+          {expanded ? (
+            <CaretDownIcon size={20} weight="bold" />
+          ) : (
+            <CaretRightIcon size={20} weight="bold" />
+          )}
+        </button>
+      ) : null}
+      <div className={`min-w-0 flex-1 ${isSection ? "py-1" : ""}`}>
+        {element.type === "section" ? (
+          <SectionHeadingEditor
+            element={element}
+            editable={editable}
+            onTextChange={onUpdateElementText}
+          />
+        ) : element.type === "text" ? (
+          <TextElementEditor
+            element={element}
+            editable={editable}
+            onTextChange={onUpdateElementText}
+          />
+        ) : (
+          <ImageElementRow element={element} onExpand={onExpandImage} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SortableRow(props: ElementRowProps) {
   const {
     attributes,
     listeners,
@@ -113,12 +220,25 @@ function SortableRow({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: element.id });
+  } = useSortable({ id: props.element.id, disabled: !props.editable });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    ...props.style,
   };
+
+  const row = (
+    <ElementRowContent
+      element={props.element}
+      editable={props.editable}
+      collapsedSectionIds={props.collapsedSectionIds}
+      onToggleSectionCollapsed={props.onToggleSectionCollapsed}
+      onExpandImage={props.onExpandImage}
+      onUpdateElementText={props.onUpdateElementText}
+      dragHandleProps={{ attributes, listeners: listeners ?? undefined }}
+    />
+  );
 
   return (
     <div
@@ -126,71 +246,45 @@ function SortableRow({
       style={style}
       className={isDragging ? "relative z-10 opacity-90" : undefined}
     >
-      <SwipeToDeleteRow
-        elementId={element.id}
-        openElementId={openSwipeElementId}
-        onOpenChange={onOpenSwipeChange}
-        onDelete={() => onDelete(element.id)}
-      >
-        <div className="flex items-start gap-1">
-          <button
-            type="button"
-            data-swipe-exclude
-            className={
-              isSection
-                ? "text-muted hover:text-foreground shrink-0 touch-none cursor-grab py-3 active:cursor-grabbing"
-                : "text-muted hover:text-foreground shrink-0 touch-none cursor-grab py-4 active:cursor-grabbing"
-            }
-            aria-label="Drag to reorder"
-            {...attributes}
-            {...listeners}
-          >
-            <DotsSixVerticalIcon
-              size={22}
-              weight="bold"
-              className="text-neutral-300"
-            />
-          </button>
-          {isSection ? (
-            <button
-              type="button"
-              data-swipe-exclude
-              onClick={() => onToggleSectionCollapsed(element.id)}
-              className="text-muted hover:text-foreground shrink-0 py-3"
-              aria-label={expanded ? "Collapse section" : "Expand section"}
-            >
-              {expanded ? (
-                <CaretDownIcon size={20} weight="bold" />
-              ) : (
-                <CaretRightIcon size={20} weight="bold" />
-              )}
-            </button>
-          ) : null}
-          <div className={`min-w-0 flex-1 ${isSection ? "py-1" : ""}`}>
-            {element.type === "section" ? (
-              <SectionHeadingEditor pageId={pageId} element={element} />
-            ) : element.type === "text" ? (
-              <TextElementEditor pageId={pageId} element={element} />
-            ) : (
-              <ImageElementRow element={element} onExpand={onExpandImage} />
-            )}
-          </div>
-        </div>
-      </SwipeToDeleteRow>
+      {props.editable ? (
+        <SwipeToDeleteRow
+          elementId={props.element.id}
+          openElementId={props.openSwipeElementId}
+          onOpenChange={props.onOpenSwipeChange}
+          onDelete={() => props.onDelete(props.element.id)}
+        >
+          {row}
+        </SwipeToDeleteRow>
+      ) : (
+        row
+      )}
     </div>
   );
 }
 
+function StaticRow(props: ElementRowProps) {
+  return (
+    <ElementRowContent
+      element={props.element}
+      editable={false}
+      collapsedSectionIds={props.collapsedSectionIds}
+      onToggleSectionCollapsed={props.onToggleSectionCollapsed}
+      onExpandImage={props.onExpandImage}
+    />
+  );
+}
+
 export function PageElementsList({
-  pageId,
   elements,
-  accessToken,
+  editable,
   collapsedSectionIds,
   onToggleSectionCollapsed,
+  onUpdateElementText,
+  onDeleteElement,
+  onReorderToFlatIds,
+  onInsertAtFlatIndex,
 }: PageElementsListProps) {
   const { user } = useAuth();
-  const reorderElements = useReorderElements(accessToken);
-  const deleteElementMutation = useDeleteElement(accessToken);
   const [expandedImage, setExpandedImage] = useState<{
     path: string;
     caption: string;
@@ -225,14 +319,14 @@ export function PageElementsList({
     }),
   );
 
-  function onDeleteElement(elementId: string) {
+  function handleDelete(elementId: string) {
     setOpenSwipeElementId(null);
-    void deleteElementMutation.mutate({ pageId, elementId });
+    onDeleteElement?.(elementId);
   }
 
   function onDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (!over || active.id === over.id) {
+    if (!over || active.id === over.id || !onReorderToFlatIds) {
       return;
     }
 
@@ -253,51 +347,108 @@ export function PageElementsList({
     );
 
     setFlatIds(nextFlat);
-    void reorderElements.mutate({
-      pageId,
-      body: { element_ids: nextFlat },
-    });
+    onReorderToFlatIds(nextFlat);
   }
 
-  if (visibleIds.length === 0) {
+  function handleInsertAtVisibleSlot(visibleSlotIndex: number) {
+    if (!onInsertAtFlatIndex) {
+      return;
+    }
+
+    const flatInsertIndex = flatInsertIndexFromVisibleSlot(
+      flatIds,
+      visibleIds,
+      visibleSlotIndex,
+    );
+    onInsertAtFlatIndex(flatInsertIndex);
+  }
+
+  const rowProps = {
+    editable,
+    collapsedSectionIds,
+    onToggleSectionCollapsed,
+    openSwipeElementId,
+    onOpenSwipeChange: setOpenSwipeElementId,
+    onDelete: handleDelete,
+    onExpandImage: (payload: { path: string; caption: string }) =>
+      setExpandedImage(payload),
+    onUpdateElementText,
+  };
+
+  const showInsertSlots = editable && Boolean(onInsertAtFlatIndex);
+
+  const listBody = (
+    <div
+      className={["flex flex-col gap-4", showInsertSlots ? "pt-4 pb-4" : ""]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {visibleIds.length === 0 && showInsertSlots ? (
+        <div className="flex justify-center py-2">
+          <ElementInsertSlot onClick={() => handleInsertAtVisibleSlot(0)} />
+        </div>
+      ) : null}
+      {visibleIds.map((id, index) => {
+        const element = byId.get(id);
+        if (!element) {
+          return null;
+        }
+
+        const row = editable ? (
+          <SortableRow element={element} {...rowProps} />
+        ) : (
+          <StaticRow element={element} {...rowProps} />
+        );
+
+        if (!showInsertSlots) {
+          return (
+            <div key={element.id} className="min-w-0">
+              {row}
+            </div>
+          );
+        }
+
+        return (
+          <div key={element.id} className="relative min-w-0">
+            {index === 0 ? (
+              <ElementInsertSlot
+                className="absolute top-0 left-1/2 z-20 -translate-x-1/2 -translate-y-1/2"
+                onClick={() => handleInsertAtVisibleSlot(0)}
+              />
+            ) : null}
+            {row}
+            <ElementInsertSlot
+              className="absolute bottom-0 left-1/2 z-20 -translate-x-1/2 translate-y-1/2"
+              onClick={() => handleInsertAtVisibleSlot(index + 1)}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  if (!editable && visibleIds.length === 0) {
     return null;
   }
 
   return (
     <>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={onDragEnd}
-      >
-        <SortableContext
-          items={visibleIds}
-          strategy={verticalListSortingStrategy}
+      {editable ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={onDragEnd}
         >
-          <div className="space-y-6">
-            {visibleIds.map((id) => {
-              const element = byId.get(id);
-              if (!element) {
-                return null;
-              }
-
-              return (
-                <SortableRow
-                  key={element.id}
-                  element={element}
-                  pageId={pageId}
-                  collapsedSectionIds={collapsedSectionIds}
-                  onToggleSectionCollapsed={onToggleSectionCollapsed}
-                  openSwipeElementId={openSwipeElementId}
-                  onOpenSwipeChange={setOpenSwipeElementId}
-                  onDelete={onDeleteElement}
-                  onExpandImage={(payload) => setExpandedImage(payload)}
-                />
-              );
-            })}
-          </div>
-        </SortableContext>
-      </DndContext>
+          <SortableContext
+            items={visibleIds}
+            strategy={verticalListSortingStrategy}
+          >
+            {listBody}
+          </SortableContext>
+        </DndContext>
+      ) : (
+        listBody
+      )}
 
       <ExpandedImageViewer
         open={expandedImage !== null}

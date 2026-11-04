@@ -13,6 +13,7 @@ type ImagePickerMultipleProps = {
   onPick: (files: File[]) => void;
   className?: string;
   aspect?: "square" | "wide";
+  compact?: boolean;
   previewUrl?: never;
 };
 
@@ -21,6 +22,7 @@ export function ImagePicker(
 ) {
   const inputRef = useRef<HTMLInputElement>(null);
   const multiple = "multiple" in props && props.multiple;
+  const compact = multiple && "compact" in props && props.compact;
   const aspect = props.aspect ?? "square";
 
   function onChange(event: ChangeEvent<HTMLInputElement>) {
@@ -42,7 +44,8 @@ export function ImagePicker(
   }
 
   const aspectClass = aspect === "square" ? "aspect-square" : "aspect-[4/3]";
-  const previewUrl = !multiple && "previewUrl" in props ? props.previewUrl : null;
+  const previewUrl =
+    !multiple && "previewUrl" in props ? props.previewUrl : null;
 
   return (
     <>
@@ -58,9 +61,17 @@ export function ImagePicker(
         type="button"
         onClick={() => inputRef.current?.click()}
         className={[
-          "bg-surface text-muted hover:text-foreground relative flex w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg",
-          aspectClass,
-          props.className,
+          "bg-surface text-muted hover:text-foreground relative flex w-full overflow-hidden rounded-sm",
+          ...(compact
+            ? [
+                "flex-row items-center justify-center gap-2",
+                props.className ?? "h-14",
+              ]
+            : [
+                "flex-col items-center justify-center gap-2",
+                aspectClass,
+                props.className,
+              ]),
         ]
           .filter(Boolean)
           .join(" ")}
@@ -73,7 +84,7 @@ export function ImagePicker(
           />
         ) : (
           <>
-            <ImageSquareIcon size={32} weight="duotone" />
+            <ImageSquareIcon size={compact ? 22 : 32} weight="duotone" />
             <span className="inline-flex items-center gap-1 text-sm font-medium">
               <PlusIcon size={14} weight="bold" />
               {multiple ? "Add photos" : "Add"}

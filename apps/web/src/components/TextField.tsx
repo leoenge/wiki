@@ -13,7 +13,7 @@ export function TextField({ label, className, id, ...props }: TextFieldProps) {
       <input
         id={fieldId}
         className={[
-          "bg-surface text-foreground w-full rounded-sm px-4 py-3 text-base outline-none placeholder:text-muted",
+          "bg-surface text-foreground w-full rounded-xs px-4 py-3 text-base outline-none placeholder:text-muted",
           className,
         ]
           .filter(Boolean)

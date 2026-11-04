@@ -1,12 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { XIcon } from "@phosphor-icons/react";
-
 import { readImageMetadata } from "../../lib/images.js";
 import { Button } from "../Button.js";
 import { Dialog } from "../Dialog.js";
 import { ImagePicker } from "../ImagePicker.js";
-import { TextField } from "../TextField.js";
 
 export type AddImageItem = {
   id: string;
@@ -84,58 +81,50 @@ export function AddImageDialog({
     setItems((previous) => sortByTakenAt([...previous, ...nextItems]));
   }
 
-  function removeItem(id: string) {
-    setItems((previous) => {
-      const target = previous.find((item) => item.id === id);
-      if (target) {
-        URL.revokeObjectURL(target.previewUrl);
-      }
-      return previous.filter((item) => item.id !== id);
-    });
-  }
-
   function setCaption(id: string, caption: string) {
     setItems((previous) =>
-      previous.map((item) =>
-        item.id === id ? { ...item, caption } : item,
-      ),
+      previous.map((item) => (item.id === id ? { ...item, caption } : item)),
     );
   }
 
   const count = sortedItems.length;
+  const rowHeightClass = "h-16";
 
   return (
     <Dialog open={open} onClose={handleClose}>
-      <div className="space-y-5">
+      <div className="space-y-4">
         <ImagePicker
           multiple
+          compact={count > 0}
+          className={count > 0 ? rowHeightClass : undefined}
           onPick={(files: File[]) => void handlePick(files)}
         />
 
         {count > 0 ? (
-          <div className="max-h-72 space-y-4 overflow-y-auto pr-1">
+          <div className="max-h-60 space-y-3 overflow-y-auto pr-1">
             {sortedItems.map((item) => (
-              <div key={item.id} className="flex items-start gap-3">
+              <div key={item.id} className="flex gap-3">
                 <img
                   src={item.previewUrl}
                   alt=""
-                  className="size-14 shrink-0 rounded-sm object-cover"
+                  className={`${rowHeightClass} w-16 shrink-0 rounded-xs object-cover`}
                 />
-                <TextField
-                  label="Caption"
-                  value={item.caption}
-                  onChange={(event) => setCaption(item.id, event.target.value)}
-                  maxLength={500}
-                  className="min-w-0 flex-1"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeItem(item.id)}
-                  className="text-muted hover:text-foreground shrink-0 p-2"
-                  aria-label="Remove image"
+                <label
+                  className={`flex ${rowHeightClass} min-w-0 flex-1 flex-col gap-1`}
                 >
-                  <XIcon size={18} weight="bold" />
-                </button>
+                  <span className="text-muted text-xs font-medium leading-none">
+                    Caption
+                  </span>
+                  <input
+                    type="text"
+                    value={item.caption}
+                    onChange={(event) =>
+                      setCaption(item.id, event.target.value)
+                    }
+                    maxLength={500}
+                    className="bg-surface text-foreground min-h-0 flex-1 rounded-xs px-3 py-2 text-base outline-none placeholder:text-muted"
+                  />
+                </label>
               </div>
             ))}
           </div>

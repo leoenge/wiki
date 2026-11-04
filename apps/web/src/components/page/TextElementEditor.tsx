@@ -1,17 +1,17 @@
 import type { PageElement } from "@ww/types";
 import { useEffect, useRef, useState } from "react";
 
-import { useUpdateElement } from "../../api/elements.js";
-import { useAuth } from "../../lib/auth/AuthProvider.js";
-
 type TextElementEditorProps = {
-  pageId: string;
   element: PageElement;
+  editable: boolean;
+  onTextChange?: (elementId: string, text: string) => void;
 };
 
-export function TextElementEditor({ pageId, element }: TextElementEditorProps) {
-  const { accessToken } = useAuth();
-  const updateElement = useUpdateElement(accessToken);
+export function TextElementEditor({
+  element,
+  editable,
+  onTextChange,
+}: TextElementEditorProps) {
   const [text, setText] = useState(element.text ?? "");
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -43,40 +43,49 @@ export function TextElementEditor({ pageId, element }: TextElementEditorProps) {
     }
   }
 
-  async function persist(value: string) {
+  function persist(value: string) {
     if (value === (element.text ?? "")) {
       setStatus("idle");
       return;
     }
 
-    setStatus("saving");
-    try {
-      await updateElement.mutateAsync({
-        pageId,
-        elementId: element.id,
-        body: { text: value },
-      });
-      setStatus("saved");
-    } catch {
-      setStatus("idle");
+    if (!onTextChange) {
+      return;
     }
+
+    setStatus("saving");
+    onTextChange(element.id, value);
+    setStatus("saved");
   }
 
   function scheduleSave(value: string) {
     latestRef.current = value;
     clearScheduledSave();
     timeoutRef.current = setTimeout(() => {
-      void persist(value);
+      persist(value);
     }, 800);
   }
 
   useEffect(() => {
     return () => {
       clearScheduledSave();
-      void persist(latestRef.current);
+      persist(latestRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [element.id]);
+
+  if (!editable) {
+    const body = element.text?.trim();
+    if (!body) {
+      return null;
+    }
+
+    return (
+      <p className="py-3 text-base leading-relaxed whitespace-pre-wrap">
+        {body}
+      </p>
+    );
+  }
 
   return (
     <div className="space-y-2">
@@ -91,12 +100,15 @@ export function TextElementEditor({ pageId, element }: TextElementEditorProps) {
         }}
         onBlur={() => {
           clearScheduledSave();
-          void persist(latestRef.current);
+          persist(latestRef.current);
         }}
         rows={1}
         placeholder="Write something"
         className="text-foreground w-full resize-none overflow-hidden rounded-lg py-3 text-base leading-normal outline-none placeholder:text-muted"
       />
+      {status === "saving" ? (
+        <p className="text-muted text-xs">Saving</p>
+      ) : null}
     </div>
   );
 }

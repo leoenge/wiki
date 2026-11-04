@@ -11,7 +11,9 @@ export function StorageImage({ path, className }: StorageImageProps) {
   if (query.isLoading || !query.data) {
     return (
       <div
-        className={[className, "bg-surface animate-pulse"].filter(Boolean).join(" ")}
+        className={[className, "bg-surface animate-pulse"]
+          .filter(Boolean)
+          .join(" ")}
       />
     );
   }

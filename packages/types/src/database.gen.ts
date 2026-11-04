@@ -19,6 +19,26 @@ export type Database = {
                   Relationships: [
                     
                   ]
+                },"page_drafts": {
+                  Row: {
+                    "content": NonNullable<Json>,"created_at": string,"id": string,"page_id": string,"updated_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "content": NonNullable<Json>,"created_at"?: string,"id"?: string,"page_id": string,"updated_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "content"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"page_id"?: string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "page_drafts_page_id_fkey"
+      columns: ["page_id"]
+isOneToOne: false
+      referencedRelation: "pages"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"page_elements": {
                   Row: {
                     "caption": string | null,"created_at": string,"id": string,"image_id": string | null,"image_path": string | null,"page_id": string,"parent_id": string | null,"position": number,"text": string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at": string

@@ -43,3 +43,16 @@ export {
   type Image,
   type ImageMetadataFields,
 } from "./api/images.js";
+export {
+  draftPageElementSchema,
+  pageDraftContentSchema,
+  upsertPageDraftBodySchema,
+  buildPageDraftContent,
+  draftContentToPageElements,
+  liveSnapshotToDraftContent,
+  pageElementToDraftElement,
+  type DraftPageElement,
+  type PageDraft,
+  type PageDraftContent,
+  type UpsertPageDraftBody,
+} from "./api/drafts.js";

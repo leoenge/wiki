@@ -1,20 +1,17 @@
 import type { PageElement } from "@ww/types";
 import { useEffect, useRef, useState } from "react";
 
-import { useUpdateElement } from "../../api/elements.js";
-import { useAuth } from "../../lib/auth/AuthProvider.js";
-
 type SectionHeadingEditorProps = {
-  pageId: string;
   element: PageElement;
+  editable: boolean;
+  onTextChange?: (elementId: string, text: string) => void;
 };
 
 export function SectionHeadingEditor({
-  pageId,
   element,
+  editable,
+  onTextChange,
 }: SectionHeadingEditorProps) {
-  const { accessToken } = useAuth();
-  const updateElement = useUpdateElement(accessToken);
   const [text, setText] = useState(element.text ?? "");
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestRef = useRef(text);
@@ -31,37 +28,37 @@ export function SectionHeadingEditor({
     }
   }
 
-  async function persist(value: string) {
+  function persist(value: string) {
     if (value === (element.text ?? "")) {
       return;
     }
 
-    try {
-      await updateElement.mutateAsync({
-        pageId,
-        elementId: element.id,
-        body: { text: value },
-      });
-    } catch {
-      // keep local value
-    }
+    onTextChange?.(element.id, value);
   }
 
   function scheduleSave(value: string) {
     latestRef.current = value;
     clearScheduledSave();
     timeoutRef.current = setTimeout(() => {
-      void persist(value);
+      persist(value);
     }, 800);
   }
 
   useEffect(() => {
     return () => {
       clearScheduledSave();
-      void persist(latestRef.current);
+      persist(latestRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [element.id]);
+
+  if (!editable) {
+    return (
+      <h2 className="font-serif text-2xl tracking-tight py-1">
+        {element.text?.trim() || "Untitled section"}
+      </h2>
+    );
+  }
 
   return (
     <input
@@ -74,7 +71,7 @@ export function SectionHeadingEditor({
       }}
       onBlur={() => {
         clearScheduledSave();
-        void persist(latestRef.current);
+        persist(latestRef.current);
       }}
       placeholder="Section title"
       className="font-serif text-foreground w-full min-w-0 bg-transparent text-2xl tracking-tight outline-none placeholder:text-muted"

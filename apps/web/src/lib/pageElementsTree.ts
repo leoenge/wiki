@@ -63,3 +63,25 @@ export function mergeVisibleFlatOrder(
 export function flatIdsFromElements(elements: PageElement[]): string[] {
   return flattenPageElements(elements).map((element) => element.id);
 }
+
+/** Maps a slot index (0 = before first visible, length = after last) to full flat order. */
+export function flatInsertIndexFromVisibleSlot(
+  flatIds: string[],
+  visibleIds: string[],
+  visibleSlotIndex: number,
+): number {
+  if (visibleIds.length === 0) {
+    return 0;
+  }
+
+  if (visibleSlotIndex <= 0) {
+    return flatIds.indexOf(visibleIds[0]!);
+  }
+
+  if (visibleSlotIndex >= visibleIds.length) {
+    const lastId = visibleIds[visibleIds.length - 1]!;
+    return flatIds.indexOf(lastId) + 1;
+  }
+
+  return flatIds.indexOf(visibleIds[visibleSlotIndex]!);
+}

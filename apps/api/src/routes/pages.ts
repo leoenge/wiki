@@ -2,6 +2,12 @@ import { Router } from "express";
 
 import { requireAuth } from "../middleware/requireAuth.js";
 import { createElement, createImageElements, deleteElement, reorderElements, updateElement } from "../services/elements.js";
+import {
+  discardPageDraft,
+  getPageDraft,
+  publishPageDraft,
+  upsertPageDraft,
+} from "../services/drafts.js";
 import { createPage, updatePage } from "../services/pages.js";
 
 export const pagesRouter = Router();
@@ -19,6 +25,50 @@ pagesRouter.patch("/:pageId", requireAuth, async (req, res, next) => {
   try {
     const page = await updatePage(req.uid!, req.params.pageId, req.body);
     res.json(page);
+  } catch (error) {
+    next(error);
+  }
+});
+
+pagesRouter.get("/:pageId/draft", requireAuth, async (req, res, next) => {
+  try {
+    const draft = await getPageDraft(req.uid!, req.params.pageId);
+    if (!draft) {
+      res.status(404).json({ error: "Draft not found" });
+      return;
+    }
+    res.json(draft);
+  } catch (error) {
+    next(error);
+  }
+});
+
+pagesRouter.put("/:pageId/draft", requireAuth, async (req, res, next) => {
+  try {
+    const draft = await upsertPageDraft(req.uid!, req.params.pageId, req.body);
+    res.json(draft);
+  } catch (error) {
+    next(error);
+  }
+});
+
+pagesRouter.post(
+  "/:pageId/draft/publish",
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const result = await publishPageDraft(req.uid!, req.params.pageId);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+pagesRouter.delete("/:pageId/draft", requireAuth, async (req, res, next) => {
+  try {
+    await discardPageDraft(req.uid!, req.params.pageId);
+    res.status(204).send();
   } catch (error) {
     next(error);
   }
