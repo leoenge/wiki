@@ -168,43 +168,47 @@ export function PlacePicker({ onAdd }: PlacePickerProps) {
   }
 
   return (
-    <div ref={rootRef} className="space-y-3">
-      <div className="relative">
-        <MagnifyingGlassIcon
-          size={18}
-          weight="bold"
-          className="text-muted pointer-events-none absolute top-1/2 left-4 -translate-y-1/2"
-          aria-hidden
-        />
-        <input
-          type="search"
-          value={query}
-          enterKeyHint="search"
-          autoComplete="off"
-          autoCorrect="off"
-          spellCheck={false}
-          placeholder="Search for a place"
-          aria-label="Search for a place"
-          aria-expanded={menuOpen}
-          aria-controls="map-place-suggestions"
-          disabled={resolving || !placesLib}
-          onChange={(event) => {
-            setLookupError(false);
-            setQuery(event.target.value);
-          }}
-          onFocus={() => {
-            if (suggestions.length > 0) {
-              setMenuOpen(true);
-            }
-          }}
-          className="bg-background text-foreground placeholder:text-muted w-full rounded-xs py-3 pr-4 pl-11 text-base outline-none [color-scheme:light]"
-        />
+    <div ref={rootRef} className="space-y-3" data-swipe-exclude>
+      <div>
+        <div className="relative">
+          <MagnifyingGlassIcon
+            size={18}
+            weight="bold"
+            className="text-muted pointer-events-none absolute top-1/2 left-4 -translate-y-1/2"
+            aria-hidden
+          />
+          <input
+            type="search"
+            value={query}
+            enterKeyHint="search"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="Search for a place"
+            aria-label="Search for a place"
+            aria-expanded={menuOpen}
+            aria-controls="map-place-suggestions"
+            disabled={resolving || !placesLib}
+            data-swipe-exclude
+            onChange={(event) => {
+              setLookupError(false);
+              setQuery(event.target.value);
+            }}
+            onFocus={() => {
+              if (suggestions.length > 0) {
+                setMenuOpen(true);
+              }
+            }}
+            className="text-foreground placeholder:text-muted w-full rounded-xs bg-surface/70 py-3 pr-4 pl-11 text-base outline-none [color-scheme:light]"
+          />
+        </div>
 
         {menuOpen && suggestions.length > 0 ? (
           <ul
             id="map-place-suggestions"
             role="listbox"
-            className="bg-background absolute top-full right-0 left-0 z-30 mt-1 max-h-60 overflow-y-auto rounded-xs py-1 shadow-[0_4px_24px_rgba(0,0,0,0.12)]"
+            data-swipe-exclude
+            className="bg-background mt-2 max-h-60 overflow-y-auto rounded-sm border border-surface-strong/80 py-1"
           >
             {suggestions.map((row) => (
               <li key={row.key} role="presentation">
