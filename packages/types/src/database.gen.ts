@@ -5,19 +5,39 @@ export type Database = {
   
   "public": {
           Tables: {
-            "page_elements": {
+            "images": {
                   Row: {
-                    "caption": string | null,"created_at": string,"id": string,"image_path": string | null,"page_id": string,"parent_id": string | null,"position": number,"text": string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at": string
+                    "created_at": string,"id": string,"latitude": number | null,"longitude": number | null,"owner_id": string,"path": string,"taken_at": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_path"?: string | null,"page_id": string,"parent_id"?: string | null,"position": number,"text"?: string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at"?: string
+                    "created_at"?: string,"id"?: string,"latitude"?: number | null,"longitude"?: number | null,"owner_id": string,"path": string,"taken_at": string,"updated_at"?: string
                   }
                   Update: {
-                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_path"?: string | null,"page_id"?: string,"parent_id"?: string | null,"position"?: number,"text"?: string | null,"type"?: Database["public"]['Enums']["page_element_type"],"updated_at"?: string
+                    "created_at"?: string,"id"?: string,"latitude"?: number | null,"longitude"?: number | null,"owner_id"?: string,"path"?: string,"taken_at"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"page_elements": {
+                  Row: {
+                    "caption": string | null,"created_at": string,"id": string,"image_id": string | null,"image_path": string | null,"page_id": string,"parent_id": string | null,"position": number,"text": string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_id"?: string | null,"image_path"?: string | null,"page_id": string,"parent_id"?: string | null,"position": number,"text"?: string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at"?: string
+                  }
+                  Update: {
+                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_id"?: string | null,"image_path"?: string | null,"page_id"?: string,"parent_id"?: string | null,"position"?: number,"text"?: string | null,"type"?: Database["public"]['Enums']["page_element_type"],"updated_at"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "page_elements_image_id_fkey"
+      columns: ["image_id"]
+isOneToOne: false
+      referencedRelation: "images"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "page_elements_page_id_fkey"
       columns: ["page_id"]
 isOneToOne: false
@@ -33,17 +53,23 @@ isOneToOne: false
                   ]
                 },"pages": {
                   Row: {
-                    "created_at": string,"id": string,"main_image_path": string | null,"name": string,"owner_id": string,"tag": string,"updated_at": string
+                    "created_at": string,"id": string,"main_image_id": string | null,"main_image_path": string | null,"name": string,"owner_id": string,"tag": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"id"?: string,"main_image_path"?: string | null,"name": string,"owner_id": string,"tag": string,"updated_at"?: string
+                    "created_at"?: string,"id"?: string,"main_image_id"?: string | null,"main_image_path"?: string | null,"name": string,"owner_id": string,"tag": string,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"id"?: string,"main_image_path"?: string | null,"name"?: string,"owner_id"?: string,"tag"?: string,"updated_at"?: string
+                    "created_at"?: string,"id"?: string,"main_image_id"?: string | null,"main_image_path"?: string | null,"name"?: string,"owner_id"?: string,"tag"?: string,"updated_at"?: string
                   }
                   Relationships: [
-                    
+                    {
+      foreignKeyName: "pages_main_image_id_fkey"
+      columns: ["main_image_id"]
+isOneToOne: false
+      referencedRelation: "images"
+      referencedColumns: ["id"]
+    }
                   ]
                 }
           }

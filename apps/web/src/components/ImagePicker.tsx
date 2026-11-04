@@ -1,4 +1,4 @@
-import { ImageSquare, Plus } from "@phosphor-icons/react";
+import { ImageSquareIcon, PlusIcon } from "@phosphor-icons/react";
 import { type ChangeEvent, useRef } from "react";
 
 type ImagePickerProps = {
@@ -8,23 +8,41 @@ type ImagePickerProps = {
   aspect?: "square" | "wide";
 };
 
-export function ImagePicker({
-  previewUrl,
-  onPick,
-  className,
-  aspect = "square",
-}: ImagePickerProps) {
+type ImagePickerMultipleProps = {
+  multiple: true;
+  onPick: (files: File[]) => void;
+  className?: string;
+  aspect?: "square" | "wide";
+  previewUrl?: never;
+};
+
+export function ImagePicker(
+  props: ImagePickerProps | ImagePickerMultipleProps,
+) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const multiple = "multiple" in props && props.multiple;
+  const aspect = props.aspect ?? "square";
 
   function onChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (file) {
-      onPick(file);
+    const fileList = event.target.files;
+    if (!fileList?.length) {
+      event.target.value = "";
+      return;
+    }
+
+    if (multiple) {
+      props.onPick(Array.from(fileList));
+    } else if ("previewUrl" in props || !multiple) {
+      const file = fileList[0];
+      if (file) {
+        (props as ImagePickerProps).onPick(file);
+      }
     }
     event.target.value = "";
   }
 
   const aspectClass = aspect === "square" ? "aspect-square" : "aspect-[4/3]";
+  const previewUrl = !multiple && "previewUrl" in props ? props.previewUrl : null;
 
   return (
     <>
@@ -33,6 +51,7 @@ export function ImagePicker({
         type="file"
         accept="image/jpeg,image/png,image/webp"
         className="sr-only"
+        multiple={multiple || undefined}
         onChange={onChange}
       />
       <button
@@ -41,7 +60,7 @@ export function ImagePicker({
         className={[
           "bg-surface text-muted hover:text-foreground relative flex w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg",
           aspectClass,
-          className,
+          props.className,
         ]
           .filter(Boolean)
           .join(" ")}
@@ -54,10 +73,10 @@ export function ImagePicker({
           />
         ) : (
           <>
-            <ImageSquare size={32} weight="duotone" />
+            <ImageSquareIcon size={32} weight="duotone" />
             <span className="inline-flex items-center gap-1 text-sm font-medium">
-              <Plus size={14} weight="bold" />
-              Add
+              <PlusIcon size={14} weight="bold" />
+              {multiple ? "Add photos" : "Add"}
             </span>
           </>
         )}

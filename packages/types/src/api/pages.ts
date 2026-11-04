@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { imageMetadataFieldsSchema } from "./images.js";
 import type { Tables } from "../helpers.js";
 
 export const RESERVED_TAGS = ["auth", "create", "api"] as const;
@@ -19,9 +20,11 @@ export const createPageBodySchema = z.object({
   tag: tagSchema,
 });
 
-export const updatePageBodySchema = z.object({
-  main_image_path: z.string().min(1).nullable(),
-});
+export const updatePageBodySchema = z
+  .object({
+    main_image_path: z.string().min(1).nullable(),
+  })
+  .merge(imageMetadataFieldsSchema.partial());
 
 export type CreatePageBody = z.infer<typeof createPageBodySchema>;
 export type UpdatePageBody = z.infer<typeof updatePageBodySchema>;

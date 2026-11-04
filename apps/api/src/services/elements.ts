@@ -1,6 +1,7 @@
 import {
   assignmentsFromFlatOrder,
   createElementBodySchema,
+  createImageElementsBatchBodySchema,
   flattenPageElements,
   indexAfterSectionBlock,
   reorderElementsBodySchema,
@@ -11,7 +12,7 @@ import {
 import { db } from "../db.js";
 import { HttpError } from "../http.js";
 import { getOwnedPage } from "./pages.js";
-import { assertOwnedImage } from "./storage.js";
+import { assertOwnedImage, registerImage } from "./storage.js";
 
 async function assertSectionInPage(
   pageId: string,
@@ -129,6 +130,12 @@ export async function createElement(
   if (parsed.type === "image") {
     await assertOwnedImage(uid, parsed.image_path);
 
+    const imageId = await registerImage(uid, parsed.image_path, {
+      taken_at: parsed.taken_at,
+      latitude: parsed.latitude,
+      longitude: parsed.longitude,
+    });
+
     const { data, error } = await db
       .from("page_elements")
       .insert({
@@ -137,6 +144,7 @@ export async function createElement(
         position: 0,
         parent_id: null,
         image_path: parsed.image_path,
+        image_id: imageId,
         caption: parsed.caption ?? "",
       })
       .select()
@@ -186,6 +194,76 @@ export async function createElement(
     (element) => element.id === data.id,
   );
   return updated ?? data;
+}
+
+export async function createImageElements(
+  uid: string,
+  pageId: string,
+  body: unknown,
+): Promise<PageElement[]> {
+  await getOwnedPage(uid, pageId);
+  const parsed = createImageElementsBatchBodySchema.parse(body);
+  const existing = await loadPageElements(pageId);
+  const flat = flattenPageElements(existing).map((element) => element.id);
+  const byId = new Map(existing.map((element) => [element.id, element]));
+
+  if (parsed.target_section_id) {
+    await assertSectionInPage(pageId, parsed.target_section_id);
+  }
+
+  const insertAt =
+    parsed.target_section_id === undefined
+      ? flat.length
+      : indexAfterSectionBlock(flat, parsed.target_section_id, byId) + 1;
+
+  const sorted = [...parsed.images].sort(
+    (a, b) =>
+      new Date(a.taken_at).getTime() - new Date(b.taken_at).getTime(),
+  );
+
+  const created: PageElement[] = [];
+
+  for (const item of sorted) {
+    await assertOwnedImage(uid, item.image_path);
+    const imageId = await registerImage(uid, item.image_path, {
+      taken_at: item.taken_at,
+      latitude: item.latitude,
+      longitude: item.longitude,
+    });
+
+    const { data, error } = await db
+      .from("page_elements")
+      .insert({
+        page_id: pageId,
+        type: "image",
+        position: 0,
+        parent_id: null,
+        image_path: item.image_path,
+        image_id: imageId,
+        caption: item.caption ?? "",
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error(error);
+      throw new HttpError(500, "Failed to create element");
+    }
+
+    created.push(data);
+  }
+
+  const newIds = created.map((element) => element.id);
+  const nextFlat = [
+    ...flat.slice(0, insertAt),
+    ...newIds,
+    ...flat.slice(insertAt),
+  ];
+  await applyFlatOrder(pageId, nextFlat, [...existing, ...created]);
+
+  const reloaded = await loadPageElements(pageId);
+  const createdIds = new Set(newIds);
+  return reloaded.filter((element) => createdIds.has(element.id));
 }
 
 export async function updateElement(

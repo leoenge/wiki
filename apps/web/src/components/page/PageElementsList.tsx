@@ -15,7 +15,11 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CaretDown, CaretRight, DotsSixVertical } from "@phosphor-icons/react";
+import {
+  CaretDownIcon,
+  CaretRightIcon,
+  DotsSixVerticalIcon,
+} from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { PageElement } from "@ww/types";
@@ -128,45 +132,49 @@ function SortableRow({
         onOpenChange={onOpenSwipeChange}
         onDelete={() => onDelete(element.id)}
       >
-        <div className="flex items-start gap-1 -ml-4">
-        <button
-          type="button"
-          data-swipe-exclude
-          className={
-            isSection
-              ? "text-muted hover:text-foreground shrink-0 touch-none cursor-grab py-3 active:cursor-grabbing"
-              : "text-muted hover:text-foreground shrink-0 touch-none cursor-grab py-4 active:cursor-grabbing"
-          }
-          aria-label="Drag to reorder"
-          {...attributes}
-          {...listeners}
-        >
-          <DotsSixVertical size={22} weight="bold" />
-        </button>
-        {isSection ? (
+        <div className="flex items-start gap-1">
           <button
             type="button"
             data-swipe-exclude
-            onClick={() => onToggleSectionCollapsed(element.id)}
-            className="text-muted hover:text-foreground shrink-0 py-3"
-            aria-label={expanded ? "Collapse section" : "Expand section"}
+            className={
+              isSection
+                ? "text-muted hover:text-foreground shrink-0 touch-none cursor-grab py-3 active:cursor-grabbing"
+                : "text-muted hover:text-foreground shrink-0 touch-none cursor-grab py-4 active:cursor-grabbing"
+            }
+            aria-label="Drag to reorder"
+            {...attributes}
+            {...listeners}
           >
-            {expanded ? (
-              <CaretDown size={20} weight="bold" />
-            ) : (
-              <CaretRight size={20} weight="bold" />
-            )}
+            <DotsSixVerticalIcon
+              size={22}
+              weight="bold"
+              className="text-neutral-300"
+            />
           </button>
-        ) : null}
-        <div className={`min-w-0 flex-1 ${isSection ? "py-1" : ""}`}>
-          {element.type === "section" ? (
-            <SectionHeadingEditor pageId={pageId} element={element} />
-          ) : element.type === "text" ? (
-            <TextElementEditor pageId={pageId} element={element} />
-          ) : (
-            <ImageElementRow element={element} onExpand={onExpandImage} />
-          )}
-        </div>
+          {isSection ? (
+            <button
+              type="button"
+              data-swipe-exclude
+              onClick={() => onToggleSectionCollapsed(element.id)}
+              className="text-muted hover:text-foreground shrink-0 py-3"
+              aria-label={expanded ? "Collapse section" : "Expand section"}
+            >
+              {expanded ? (
+                <CaretDownIcon size={20} weight="bold" />
+              ) : (
+                <CaretRightIcon size={20} weight="bold" />
+              )}
+            </button>
+          ) : null}
+          <div className={`min-w-0 flex-1 ${isSection ? "py-1" : ""}`}>
+            {element.type === "section" ? (
+              <SectionHeadingEditor pageId={pageId} element={element} />
+            ) : element.type === "text" ? (
+              <TextElementEditor pageId={pageId} element={element} />
+            ) : (
+              <ImageElementRow element={element} onExpand={onExpandImage} />
+            )}
+          </div>
         </div>
       </SwipeToDeleteRow>
     </div>
@@ -258,37 +266,37 @@ export function PageElementsList({
   return (
     <>
       <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={onDragEnd}
-    >
-      <SortableContext
-        items={visibleIds}
-        strategy={verticalListSortingStrategy}
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={onDragEnd}
       >
-        <div className="space-y-6">
-          {visibleIds.map((id) => {
-            const element = byId.get(id);
-            if (!element) {
-              return null;
-            }
+        <SortableContext
+          items={visibleIds}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="space-y-6">
+            {visibleIds.map((id) => {
+              const element = byId.get(id);
+              if (!element) {
+                return null;
+              }
 
-            return (
-              <SortableRow
-                key={element.id}
-                element={element}
-                pageId={pageId}
-                collapsedSectionIds={collapsedSectionIds}
-                onToggleSectionCollapsed={onToggleSectionCollapsed}
-                openSwipeElementId={openSwipeElementId}
-                onOpenSwipeChange={setOpenSwipeElementId}
-                onDelete={onDeleteElement}
-                onExpandImage={(payload) => setExpandedImage(payload)}
-              />
-            );
-          })}
-        </div>
-      </SortableContext>
+              return (
+                <SortableRow
+                  key={element.id}
+                  element={element}
+                  pageId={pageId}
+                  collapsedSectionIds={collapsedSectionIds}
+                  onToggleSectionCollapsed={onToggleSectionCollapsed}
+                  openSwipeElementId={openSwipeElementId}
+                  onOpenSwipeChange={setOpenSwipeElementId}
+                  onDelete={onDeleteElement}
+                  onExpandImage={(payload) => setExpandedImage(payload)}
+                />
+              );
+            })}
+          </div>
+        </SortableContext>
       </DndContext>
 
       <ExpandedImageViewer

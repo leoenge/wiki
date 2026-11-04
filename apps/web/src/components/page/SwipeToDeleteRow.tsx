@@ -1,4 +1,4 @@
-import { Trash } from "@phosphor-icons/react";
+import { TrashIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 
 const REVEAL_WIDTH = 56;
@@ -120,7 +120,7 @@ export function SwipeToDeleteRow({
         className="bg-red-600/90 text-background absolute inset-y-0 right-0 flex w-14 items-center justify-center"
         aria-label="Remove element"
       >
-        <Trash size={22} weight="bold" />
+        <TrashIcon size={22} weight="bold" />
       </button>
       <div
         className="bg-background relative touch-pan-y"

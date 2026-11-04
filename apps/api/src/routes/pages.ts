@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { requireAuth } from "../middleware/requireAuth.js";
-import { createElement, deleteElement, reorderElements, updateElement } from "../services/elements.js";
+import { createElement, createImageElements, deleteElement, reorderElements, updateElement } from "../services/elements.js";
 import { createPage, updatePage } from "../services/pages.js";
 
 export const pagesRouter = Router();
@@ -32,6 +32,23 @@ pagesRouter.post("/:pageId/elements", requireAuth, async (req, res, next) => {
     next(error);
   }
 });
+
+pagesRouter.post(
+  "/:pageId/elements/images",
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const elements = await createImageElements(
+        req.uid!,
+        req.params.pageId,
+        req.body,
+      );
+      res.status(201).json(elements);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 pagesRouter.put(
   "/:pageId/elements/reorder",

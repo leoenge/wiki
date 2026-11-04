@@ -4,6 +4,7 @@ import {
   applyAssignmentsToElements,
   assignmentsFromFlatOrder,
   type CreateElementBody,
+  type CreateImageElementsBatchBody,
   type PageElement,
   type ReorderElementsBody,
   type UpdateElementBody,
@@ -21,6 +22,21 @@ export function createElement(
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+export function createImageElements(
+  accessToken: string,
+  pageId: string,
+  body: CreateImageElementsBatchBody,
+): Promise<PageElement[]> {
+  return apiFetch<PageElement[]>(
+    `/api/pages/${pageId}/elements/images`,
+    accessToken,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+  );
 }
 
 export function updateElement(
@@ -88,6 +104,33 @@ export function useCreateElement(accessToken: string | undefined) {
       void queryClient.invalidateQueries({
         queryKey: pageElementsQueryKey(element.page_id),
       });
+    },
+  });
+}
+
+export function useCreateImageElements(accessToken: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      pageId,
+      body,
+    }: {
+      pageId: string;
+      body: CreateImageElementsBatchBody;
+    }) => {
+      if (!accessToken) {
+        throw new Error("Not signed in");
+      }
+      return createImageElements(accessToken, pageId, body);
+    },
+    onSuccess: (elements) => {
+      const pageId = elements[0]?.page_id;
+      if (pageId) {
+        void queryClient.invalidateQueries({
+          queryKey: pageElementsQueryKey(pageId),
+        });
+      }
     },
   });
 }

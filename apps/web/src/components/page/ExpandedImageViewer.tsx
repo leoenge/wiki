@@ -1,4 +1,4 @@
-import { X } from "@phosphor-icons/react";
+import { XIcon } from "@phosphor-icons/react";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 
@@ -55,7 +55,7 @@ export function ExpandedImageViewer({
           className="p-1 text-white/90 hover:text-white"
           aria-label="Close"
         >
-          <X size={28} weight="regular" />
+          <XIcon size={28} weight="regular" />
         </button>
       </header>
 

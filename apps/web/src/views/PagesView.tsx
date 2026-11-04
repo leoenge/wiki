@@ -1,4 +1,4 @@
-import { SignOut } from "@phosphor-icons/react";
+import { SignOutIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
@@ -89,7 +89,7 @@ export function PagesView() {
           className="text-muted hover:text-foreground gap-1.5"
           onClick={() => void signOut()}
         >
-          <SignOut size={16} />
+          <SignOutIcon size={16} />
           Sign out
         </Button>
       </div>

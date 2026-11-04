@@ -1,4 +1,4 @@
-import { SignIn } from "@phosphor-icons/react";
+import { SignInIcon } from "@phosphor-icons/react";
 import { type FormEvent, useState } from "react";
 import { Navigate } from "react-router-dom";
 
@@ -77,7 +77,7 @@ export function AuthView() {
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
         <Button type="submit" variant="primary" disabled={submitting}>
-          <SignIn size={18} weight="bold" />
+          <SignInIcon size={18} weight="bold" />
           {submitting
             ? "Working"
             : mode === "sign-in"

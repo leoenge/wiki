@@ -1,15 +1,28 @@
 import { z } from "zod";
 
+import { imageMetadataFieldsSchema } from "./images.js";
 import type { Tables } from "../helpers.js";
 
 export type PageElement = Tables<"page_elements">;
 
 const targetSectionIdSchema = z.string().uuid().optional();
 
-export const createImageElementBodySchema = z.object({
-  type: z.literal("image"),
-  image_path: z.string().min(1),
-  caption: z.string().trim().max(500).optional().default(""),
+const createImageItemSchema = z
+  .object({
+    image_path: z.string().min(1),
+    caption: z.string().trim().max(500).optional().default(""),
+  })
+  .merge(imageMetadataFieldsSchema);
+
+export const createImageElementBodySchema = z
+  .object({
+    type: z.literal("image"),
+    target_section_id: targetSectionIdSchema,
+  })
+  .merge(createImageItemSchema);
+
+export const createImageElementsBatchBodySchema = z.object({
+  images: z.array(createImageItemSchema).min(1).max(50),
   target_section_id: targetSectionIdSchema,
 });
 
@@ -40,6 +53,9 @@ export const reorderElementsBodySchema = z.object({
 });
 
 export type CreateElementBody = z.infer<typeof createElementBodySchema>;
+export type CreateImageElementsBatchBody = z.infer<
+  typeof createImageElementsBatchBodySchema
+>;
 export type UpdateElementBody = z.infer<typeof updateElementBodySchema>;
 export type ReorderElementsBody = z.infer<typeof reorderElementsBodySchema>;
 

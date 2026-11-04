@@ -1,4 +1,4 @@
-import { ArrowLeft } from "@phosphor-icons/react";
+import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { Link } from "react-router-dom";
 
 type BackLinkProps = {
@@ -12,7 +12,7 @@ export function BackLink({ to, children = "Back" }: BackLinkProps) {
       to={to}
       className="text-muted hover:text-foreground inline-flex items-center gap-1.5 text-sm"
     >
-      <ArrowLeft size={16} />
+      <ArrowLeftIcon size={16} />
       {children}
     </Link>
   );

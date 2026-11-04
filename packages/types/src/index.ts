@@ -26,13 +26,20 @@ export {
 export {
   createElementBodySchema,
   createImageElementBodySchema,
+  createImageElementsBatchBodySchema,
   createSectionElementBodySchema,
   createTextElementBodySchema,
   updateElementBodySchema,
   reorderElementsBodySchema,
   type CreateElementBody,
+  type CreateImageElementsBatchBody,
   type PageElement,
   type PageWithElements,
   type ReorderElementsBody,
   type UpdateElementBody,
 } from "./api/elements.js";
+export {
+  imageMetadataFieldsSchema,
+  type Image,
+  type ImageMetadataFields,
+} from "./api/images.js";

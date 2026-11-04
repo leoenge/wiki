@@ -6,7 +6,7 @@ import {
 
 import { db } from "../db.js";
 import { HttpError } from "../http.js";
-import { assertOwnedImage } from "./storage.js";
+import { assertOwnedImage, registerImage } from "./storage.js";
 
 function isUniqueViolation(error: { code?: string }): boolean {
   return error.code === "23505";
@@ -67,9 +67,21 @@ export async function updatePage(
     await assertOwnedImage(uid, parsed.main_image_path);
   }
 
+  let mainImageId: string | null = null;
+  if (parsed.main_image_path !== null) {
+    mainImageId = await registerImage(uid, parsed.main_image_path, {
+      taken_at: parsed.taken_at,
+      latitude: parsed.latitude,
+      longitude: parsed.longitude,
+    });
+  }
+
   const { data, error } = await db
     .from("pages")
-    .update({ main_image_path: parsed.main_image_path })
+    .update({
+      main_image_path: parsed.main_image_path,
+      main_image_id: mainImageId,
+    })
     .eq("id", pageId)
     .eq("owner_id", uid)
     .select()

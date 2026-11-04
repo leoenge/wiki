@@ -1,4 +1,4 @@
-import { X } from "@phosphor-icons/react";
+import { XIcon } from "@phosphor-icons/react";
 import { type ReactNode, useEffect, useRef } from "react";
 
 type DialogProps = {
@@ -50,7 +50,7 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
             className="text-muted hover:text-foreground shrink-0 p-1"
             aria-label="Close"
           >
-            <X size={20} weight="bold" />
+            <XIcon size={20} weight="bold" />
           </button>
         </div>
 

@@ -1,4 +1,4 @@
-import { Image, Rows, TextT } from "@phosphor-icons/react";
+import { ImageIcon, RowsIcon, TextTIcon } from "@phosphor-icons/react";
 
 import { Button } from "../Button.js";
 import { Dialog } from "../Dialog.js";
@@ -35,7 +35,7 @@ export function AddElementDialog({
             }}
           >
             <span className="bg-background flex size-12 shrink-0 items-center justify-center rounded-lg">
-              <Rows size={28} weight="duotone" />
+              <RowsIcon size={28} weight="duotone" />
             </span>
             <span className="text-lg font-medium">Section</span>
           </Button>
@@ -51,7 +51,7 @@ export function AddElementDialog({
           }}
         >
           <span className="bg-background flex size-12 shrink-0 items-center justify-center rounded-lg">
-            <Image size={28} weight="duotone" />
+            <ImageIcon size={28} weight="duotone" />
           </span>
           <span className="text-lg font-medium">Image</span>
         </Button>
@@ -66,7 +66,7 @@ export function AddElementDialog({
           }}
         >
           <span className="bg-background flex size-12 shrink-0 items-center justify-center rounded-lg">
-            <TextT size={28} weight="duotone" />
+            <TextTIcon size={28} weight="duotone" />
           </span>
           <span className="text-lg font-medium">Text</span>
         </Button>

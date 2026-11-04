@@ -1,4 +1,4 @@
-import { Plus } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -6,7 +6,7 @@ import { useParams } from "react-router-dom";
 import type { Page, PageElement } from "@ww/types";
 import { getLastRootSectionId } from "@ww/types";
 
-import { useCreateElement } from "../api/elements.js";
+import { useCreateElement, useCreateImageElements } from "../api/elements.js";
 import { useUpdatePage } from "../api/pages.js";
 import { pageByTagQueryKey, pageElementsQueryKey } from "../api/queries.js";
 import { BackLink } from "../components/BackLink.js";
@@ -16,7 +16,11 @@ import { AddElementDialog } from "../components/page/AddElementDialog.js";
 import { AddImageDialog } from "../components/page/AddImageDialog.js";
 import { PageElementsList } from "../components/page/PageElementsList.js";
 import { useAuth } from "../lib/auth/AuthProvider.js";
-import { uploadImage } from "../lib/images.js";
+import {
+  mapWithConcurrency,
+  uploadImage,
+} from "../lib/images.js";
+import type { AddImageItem } from "../components/page/AddImageDialog.js";
 import { supabase } from "../lib/supabase.js";
 import { useImageUrl } from "../lib/useImageUrl.js";
 
@@ -82,7 +86,7 @@ function AddContentButton({ onClick }: AddContentButtonProps) {
       onClick={onClick}
       className="bg-surface/50 text-foreground/80 inline-flex w-full items-center justify-center gap-2 rounded-lg py-12 text-xl"
     >
-      <Plus size={24} />
+      <PlusIcon size={24} />
       Add
     </button>
   );
@@ -93,6 +97,7 @@ export function PageView() {
   const { user, accessToken } = useAuth();
   const updatePage = useUpdatePage(accessToken);
   const createElement = useCreateElement(accessToken);
+  const createImageElements = useCreateImageElements(accessToken);
 
   const [chooseElementOpen, setChooseElementOpen] = useState(false);
   const [addImageOpen, setAddImageOpen] = useState(false);
@@ -192,10 +197,15 @@ export function PageView() {
 
     setMainUploading(true);
     try {
-      const path = await uploadImage(user.id, file);
+      const { path, meta } = await uploadImage(user.id, file);
       await updatePage.mutateAsync({
         pageId: page.id,
-        body: { main_image_path: path },
+        body: {
+          main_image_path: path,
+          taken_at: meta.taken_at,
+          latitude: meta.latitude,
+          longitude: meta.longitude,
+        },
       });
     } finally {
       setMainUploading(false);
@@ -238,20 +248,28 @@ export function PageView() {
     setAddTargetSectionId(section.id);
   }
 
-  async function onAddImageElement(payload: { file: File; caption: string }) {
-    if (!user || !page) {
+  async function onAddImageElements(items: AddImageItem[]) {
+    if (!user || !page || items.length === 0) {
       return;
     }
 
     setImageSubmitting(true);
     try {
-      const path = await uploadImage(user.id, payload.file);
-      await createElement.mutateAsync({
+      const uploads = await mapWithConcurrency(items, 3, async (item) => {
+        const { path, meta } = await uploadImage(user.id, item.file);
+        return {
+          image_path: path,
+          caption: item.caption,
+          taken_at: meta.taken_at,
+          latitude: meta.latitude,
+          longitude: meta.longitude,
+        };
+      });
+
+      await createImageElements.mutateAsync({
         pageId: page.id,
         body: {
-          type: "image",
-          image_path: path,
-          caption: payload.caption,
+          images: uploads,
           target_section_id: addTargetSectionIdForContent(),
         },
       });
@@ -319,7 +337,7 @@ export function PageView() {
         open={addImageOpen}
         onClose={() => setAddImageOpen(false)}
         submitting={imageSubmitting}
-        onSubmit={(payload) => void onAddImageElement(payload)}
+        onSubmit={(payload) => void onAddImageElements(payload)}
       />
     </Container>
   );
