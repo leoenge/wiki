@@ -58,15 +58,3 @@ dialog:modal {
   margin: auto;
   overflow: auto;
 }
-
-.page-map-place-autocomplete {
-  width: 100%;
-  background-color: color-mix(in srgb, var(--surface) 70%, transparent);
-  border-radius: 2px;
-  --gmp-mat-color-surface: color-mix(in srgb, var(--surface) 70%, transparent);
-  --gmp-mat-color-on-surface: var(--foreground);
-  --gmp-mat-color-on-surface-variant: var(--muted);
-  --gmp-mat-color-primary: var(--foreground);
-  --gmp-mat-font-family-body: var(--font-sans);
-  --gmp-mat-font-family-headline: var(--font-serif);
-}
