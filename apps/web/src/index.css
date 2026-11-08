@@ -58,3 +58,103 @@ dialog:modal {
   margin: auto;
   overflow: auto;
 }
+
+@keyframes view-switcher-slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(1.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes view-switcher-slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-1.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes view-switcher-slide-out-left {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-1.5rem);
+  }
+}
+
+@keyframes view-switcher-slide-out-right {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(1.5rem);
+  }
+}
+
+@keyframes view-switcher-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes view-switcher-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.view-switcher-layer {
+  width: 100%;
+}
+
+.view-switcher-layer.view-switcher-from-right {
+  animation: view-switcher-slide-in-right 250ms cubic-bezier(0, 0, 0.2, 1)
+    forwards;
+}
+
+.view-switcher-layer.view-switcher-from-left {
+  animation: view-switcher-slide-in-left 250ms cubic-bezier(0, 0, 0.2, 1)
+    forwards;
+}
+
+.view-switcher-layer.view-switcher-to-left {
+  position: absolute;
+  inset: 0;
+  animation: view-switcher-slide-out-left 250ms cubic-bezier(0, 0, 0.2, 1)
+    forwards;
+}
+
+.view-switcher-layer.view-switcher-to-right {
+  position: absolute;
+  inset: 0;
+  animation: view-switcher-slide-out-right 250ms cubic-bezier(0, 0, 0.2, 1)
+    forwards;
+}
+
+.view-switcher-layer.view-switcher-fade-in {
+  animation: view-switcher-fade-in 250ms ease-out forwards;
+}
+
+.view-switcher-layer.view-switcher-fade-out {
+  position: absolute;
+  inset: 0;
+  animation: view-switcher-fade-out 250ms ease-out forwards;
+}

@@ -21,6 +21,7 @@ export {
   updatePageBodySchema,
   type CreatePageBody,
   type Page,
+  type Profile,
   type UpdatePageBody,
 } from "./api/pages.js";
 export {

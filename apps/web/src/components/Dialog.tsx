@@ -1,14 +1,15 @@
-import { XIcon } from "@phosphor-icons/react";
+import { CaretLeftIcon, XIcon } from "@phosphor-icons/react";
 import { type ReactNode, useEffect, useRef } from "react";
 
 type DialogProps = {
   open: boolean;
   onClose: () => void;
   title?: string;
+  onBack?: () => void;
   children: ReactNode;
 };
 
-export function Dialog({ open, onClose, title, children }: DialogProps) {
+export function Dialog({ open, onClose, title, onBack, children }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -38,7 +39,17 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
       }}
     >
       <div className="p-4">
-        <div className="mb-4 flex items-start gap-4">
+        <div className="mb-4 flex items-start gap-2">
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              className="text-muted hover:text-foreground shrink-0 p-1"
+              aria-label="Back"
+            >
+              <CaretLeftIcon size={20} weight="bold" />
+            </button>
+          ) : null}
           {title ? (
             <h2 className="font-serif flex-1 text-xl leading-snug">{title}</h2>
           ) : (

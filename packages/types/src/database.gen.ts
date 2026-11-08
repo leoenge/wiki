@@ -5,7 +5,21 @@ export type Database = {
   
   "public": {
           Tables: {
-            "images": {
+            "data_migrations": {
+                  Row: {
+                    "applied_at": string,"id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "applied_at"?: string,"id": string
+                  }
+                  Update: {
+                    "applied_at"?: string,"id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"images": {
                   Row: {
                     "created_at": string,"id": string,"latitude": number | null,"longitude": number | null,"owner_id": string,"path": string,"taken_at": string,"updated_at": string
                   }
@@ -90,6 +104,20 @@ isOneToOne: false
       referencedRelation: "images"
       referencedColumns: ["id"]
     }
+                  ]
+                },"profiles": {
+                  Row: {
+                    "created_at": string,"first_name": string,"id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"first_name": string,"id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"first_name"?: string,"id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
                   ]
                 }
           }

@@ -21,6 +21,10 @@ talks to Supabase and the API directly. The API allows CORS from the origins in
    public hostnames for the three rows above (type HTTP, URL `localhost:<port>`).
    `deploy/cloudflared.example.yml` is the equivalent for a local config file.
 
+## Database migrations
+
+Today only the local Supabase stack is wired up for schema and data migrations. After pulling changes, apply pending migrations with `pnpm db:upgrade`. Do not use `pnpm db:reset` on a database you care about; it wipes all data.
+
 ## Start
 
 ```sh

@@ -25,8 +25,9 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 import type { MapPlace, PageElement } from "@ww/types";
 
+import { displayName, useProfiles } from "../../api/profiles.js";
 import { useAuth } from "../../lib/auth/AuthProvider.js";
-import { contributorNameForImagePath } from "../../lib/userDisplay.js";
+import { displayNameFromUser } from "../../lib/userDisplay.js";
 import {
   flatIdsFromElements,
   flatInsertIndexFromVisibleSlot,
@@ -298,6 +299,10 @@ export function PageElementsList({
     path: string;
     caption: string;
   } | null>(null);
+  const expandedUploaderId = expandedImage?.path.split("/")[0] ?? "";
+  const { getProfile, isLoading: profilesLoading } = useProfiles(
+    expandedUploaderId ? [expandedUploaderId] : [],
+  );
   const [openSwipeElementId, setOpenSwipeElementId] = useState<string | null>(
     null,
   );
@@ -467,7 +472,16 @@ export function PageElementsList({
         caption={expandedImage?.caption ?? ""}
         contributorName={
           expandedImage
-            ? contributorNameForImagePath(expandedImage.path, user)
+            ? (() => {
+                const profile = getProfile(expandedUploaderId);
+                if (profile) {
+                  return displayName(profile);
+                }
+                if (profilesLoading && user?.id === expandedUploaderId) {
+                  return displayNameFromUser(user);
+                }
+                return displayName(profile, { loading: profilesLoading });
+              })()
             : ""
         }
       />

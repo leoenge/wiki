@@ -1,6 +1,6 @@
 import { SignInIcon } from "@phosphor-icons/react";
 import { type FormEvent, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
 import { BackLink } from "../components/BackLink.js";
 import { Button } from "../components/Button.js";
@@ -11,14 +11,24 @@ import { useAuth } from "../lib/auth/AuthProvider.js";
 
 export function AuthView() {
   const { user } = useAuth();
+  const location = useLocation();
+  const redirectState = location.state as { from?: string } | null;
+  const from =
+    typeof redirectState?.from === "string" &&
+    redirectState.from.startsWith("/") &&
+    redirectState.from !== "/auth"
+      ? redirectState.from
+      : "/";
+
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
+  const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   if (user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={from} replace />;
   }
 
   async function onSubmit(event: FormEvent) {
@@ -26,10 +36,20 @@ export function AuthView() {
     setError(null);
     setSubmitting(true);
 
+    const trimmedFirstName = firstName.trim().slice(0, 50);
+
     const result =
       mode === "sign-in"
         ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
+        : await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                first_name: trimmedFirstName,
+              },
+            },
+          });
 
     setSubmitting(false);
 
@@ -51,6 +71,18 @@ export function AuthView() {
       </div>
 
       <form className="space-y-6" onSubmit={onSubmit}>
+        {mode === "sign-up" ? (
+          <TextField
+            label="First name"
+            type="text"
+            autoComplete="given-name"
+            required
+            value={firstName}
+            onChange={(event) => setFirstName(event.target.value)}
+            maxLength={50}
+          />
+        ) : null}
+
         <TextField
           label="Email"
           type="email"

@@ -1,4 +1,4 @@
-import { PencilSimpleIcon } from "@phosphor-icons/react";
+import { GearIcon, PencilSimpleIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useBlocker, useParams } from "react-router-dom";
@@ -18,6 +18,7 @@ import { ImagePicker } from "../components/ImagePicker.js";
 import { AddElementDialog } from "../components/page/AddElementDialog.js";
 import { AddImageDialog } from "../components/page/AddImageDialog.js";
 import { PageElementsList } from "../components/page/PageElementsList.js";
+import { PageSettingsDialog } from "../components/page/PageSettingsDialog.js";
 import { useDraftEditor } from "../hooks/useDraftEditor.js";
 import { useAuth } from "../lib/auth/AuthProvider.js";
 import { mapWithConcurrency, uploadImage } from "../lib/images.js";
@@ -100,6 +101,7 @@ function MainImageBlock({
 type PageTopBarProps = {
   isEditing: boolean;
   onEnterEdit: () => void;
+  onOpenSettings: () => void;
   onDiscard: () => void;
   onPublish: () => void;
   publishing: boolean;
@@ -109,6 +111,7 @@ type PageTopBarProps = {
 function PageTopBar({
   isEditing,
   onEnterEdit,
+  onOpenSettings,
   onDiscard,
   onPublish,
   publishing,
@@ -140,14 +143,24 @@ function PageTopBar({
   return (
     <div className="flex items-center justify-between gap-4">
       <BackLink to="/" />
-      <button
-        type="button"
-        onClick={onEnterEdit}
-        className="text-muted hover:text-foreground inline-flex items-center gap-1.5 text-sm"
-      >
-        <PencilSimpleIcon size={16} />
-        Edit
-      </button>
+      <div className="flex items-center gap-5">
+        <button
+          type="button"
+          onClick={onEnterEdit}
+          className="text-muted hover:text-foreground inline-flex items-center gap-1.5 text-sm"
+        >
+          <PencilSimpleIcon size={16} />
+          Edit
+        </button>
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          className="text-muted hover:text-foreground inline-flex items-center gap-1.5 text-sm"
+          aria-label="Settings"
+        >
+          <GearIcon size={16} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -176,6 +189,7 @@ function LoadedPageView({
   );
 
   const [isEditing, setIsEditing] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [chooseElementOpen, setChooseElementOpen] = useState(false);
   const [addImageOpen, setAddImageOpen] = useState(false);
   const [insertFlatIndex, setInsertFlatIndex] = useState(0);
@@ -348,10 +362,18 @@ function LoadedPageView({
       <PageTopBar
         isEditing={isEditing}
         onEnterEdit={onEnterEdit}
+        onOpenSettings={() => setSettingsOpen(true)}
         onDiscard={() => void onDiscard()}
         onPublish={() => void onPublish()}
         publishing={publishDraft.isPending}
         discarding={discardDraft.isPending}
+      />
+
+      <PageSettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        page={page}
+        accessToken={accessToken}
       />
 
       <header className="mt-8">

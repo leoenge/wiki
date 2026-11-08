@@ -13,6 +13,10 @@
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
     "db:reset": "supabase db reset",
+    "db:migrate": "supabase migration up --local",
+    "db:migration:new": "supabase migration new",
+    "db:upgrade": "pnpm db:migrate && pnpm db:types && pnpm data:migrate",
+    "data:migrate": "uv run --directory tools/data-migrations python run.py",
     "db:types": "supabase gen types typescript --local --schema public > packages/types/src/database.gen.ts",
     "typecheck": "pnpm -r typecheck"
   },

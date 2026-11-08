@@ -1,0 +1,9 @@
+[project]
+name = "ww-data-migrations"
+version = "0.0.0"
+description = "Python data migrations for local Supabase Postgres"
+requires-python = ">=3.11"
+dependencies = ["psycopg[binary]>=3.2"]
+
+[tool.uv]
+package = false

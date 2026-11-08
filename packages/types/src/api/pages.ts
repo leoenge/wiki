@@ -1,9 +1,8 @@
 import { z } from "zod";
 
-import { imageMetadataFieldsSchema } from "./images.js";
 import type { Tables } from "../helpers.js";
 
-export const RESERVED_TAGS = ["auth", "create", "api"] as const;
+export const RESERVED_TAGS = ["auth", "create", "api", "join"] as const;
 
 export const tagSchema = z
   .string()
@@ -20,13 +19,19 @@ export const createPageBodySchema = z.object({
   tag: tagSchema,
 });
 
+const pageNameSchema = z.string().trim().min(1).max(100);
+
 export const updatePageBodySchema = z
   .object({
-    main_image_path: z.string().min(1).nullable(),
+    name: pageNameSchema.optional(),
+    tag: tagSchema.optional(),
   })
-  .merge(imageMetadataFieldsSchema.partial());
+  .refine((body) => body.name !== undefined || body.tag !== undefined, {
+    message: "At least one field is required",
+  });
 
 export type CreatePageBody = z.infer<typeof createPageBodySchema>;
 export type UpdatePageBody = z.infer<typeof updatePageBodySchema>;
 
 export type Page = Tables<"pages">;
+export type Profile = Tables<"profiles">;

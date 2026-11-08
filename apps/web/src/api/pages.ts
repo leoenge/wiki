@@ -55,17 +55,20 @@ export function useUpdatePage(accessToken: string | undefined) {
     }: {
       pageId: string;
       body: UpdatePageBody;
+      previousTag?: string;
     }) => {
       if (!accessToken) {
         throw new Error("Not signed in");
       }
       return updatePage(accessToken, pageId, body);
     },
-    onSuccess: (page) => {
+    onSuccess: (page, variables) => {
       void queryClient.invalidateQueries({ queryKey: pagesQueryKey });
-      void queryClient.invalidateQueries({
-        queryKey: pageByTagQueryKey(page.tag),
-      });
+      queryClient.setQueryData(pageByTagQueryKey(page.tag), page);
+      const previousTag = variables.previousTag;
+      if (previousTag && previousTag !== page.tag) {
+        queryClient.removeQueries({ queryKey: pageByTagQueryKey(previousTag) });
+      }
     },
   });
 }
