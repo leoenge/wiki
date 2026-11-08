@@ -6,24 +6,30 @@ import {
   buildPageDraftContent,
   draftContentToPageElements,
   flattenPageElements,
+  itemFromMapPlace,
   type ImageMetadataFields,
+  type Json,
   type MapPlace,
   type Page,
   type PageDraftContent,
-  type PageElement,
+  type PageElementItem,
+  type PageElementWithItems,
 } from "@ww/types";
 
+import { ApiError } from "../api/client.js";
 import { useSavePageDraft } from "../api/drafts.js";
 
 const AUTOSAVE_MS = 800;
 
 type UseDraftEditorOptions = {
   page: Page;
-  liveElements: PageElement[];
+  liveElements: PageElementWithItems[];
   liveMainImagePath: string | null;
   draftContent: PageDraftContent | null;
+  draftBaseVersion: number | undefined;
   isEditing: boolean;
   accessToken: string | undefined;
+  onDraftAccessLost?: () => void;
 };
 
 function imageMetaMapFromDraft(content: PageDraftContent): Map<string, ImageMetadataFields> {
@@ -43,9 +49,9 @@ function imageMetaMapFromDraft(content: PageDraftContent): Map<string, ImageMeta
 }
 
 function applyFlatOrderToElements(
-  elements: PageElement[],
+  elements: PageElementWithItems[],
   flatIds: string[],
-): PageElement[] {
+): PageElementWithItems[] {
   const byId = new Map(
     elements.map((element) => [
       element.id,
@@ -53,19 +59,24 @@ function applyFlatOrderToElements(
     ]),
   );
   const assignments = assignmentsFromFlatOrder(flatIds, byId);
-  return applyAssignmentsToElements(elements, assignments);
+  const reordered = applyAssignmentsToElements(elements, assignments);
+  const itemsById = new Map(elements.map((element) => [element.id, element.items]));
+  return reordered.map((element) => ({
+    ...element,
+    items: itemsById.get(element.id) ?? [],
+  }));
 }
 
 function newElement(
   pageId: string,
-  partial: Pick<PageElement, "type"> &
+  partial: Pick<PageElementWithItems, "type"> &
     Partial<
       Pick<
-        PageElement,
-        "text" | "caption" | "image_path" | "parent_id" | "position" | "places"
+        PageElementWithItems,
+        "text" | "caption" | "image_path" | "parent_id" | "position" | "items"
       >
     >,
-): PageElement {
+): PageElementWithItems {
   const now = new Date().toISOString();
   return {
     id: crypto.randomUUID(),
@@ -77,10 +88,27 @@ function newElement(
     caption: partial.caption ?? null,
     image_path: partial.image_path ?? null,
     image_id: null,
-    places: partial.places ?? null,
+    items: partial.items ?? [],
     created_at: now,
     updated_at: now,
   };
+}
+
+function mapPlacesToItems(places: MapPlace[]): PageElementItem[] {
+  const now = new Date().toISOString();
+  return places.map((place, index) => {
+    const draftItem = itemFromMapPlace(place);
+    return {
+      id: draftItem.id,
+      element_id: "",
+      page_id: "",
+      position: index,
+      label: draftItem.label,
+      data: draftItem.data as NonNullable<Json>,
+      created_at: now,
+      updated_at: now,
+    };
+  });
 }
 
 export function useDraftEditor({
@@ -88,8 +116,10 @@ export function useDraftEditor({
   liveElements,
   liveMainImagePath,
   draftContent,
+  draftBaseVersion,
   isEditing,
   accessToken,
+  onDraftAccessLost,
 }: UseDraftEditorOptions) {
   const saveDraft = useSavePageDraft(accessToken);
   const [mainImagePath, setMainImagePathState] = useState<string | null>(
@@ -98,7 +128,7 @@ export function useDraftEditor({
   const [mainImageMeta, setMainImageMeta] = useState<
     PageDraftContent["main_image_meta"]
   >(undefined);
-  const [elements, setElements] = useState<PageElement[]>(liveElements);
+  const [elements, setElements] = useState<PageElementWithItems[]>(liveElements);
   const [imageMetaByPath, setImageMetaByPath] = useState<
     Map<string, ImageMetadataFields>
   >(() => new Map());
@@ -109,11 +139,17 @@ export function useDraftEditor({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestContentRef = useRef<PageDraftContent | null>(null);
   const seededRef = useRef<string | null>(null);
+  const baseVersionRef = useRef<number>(page.version);
+
+  useEffect(() => {
+    baseVersionRef.current = draftBaseVersion ?? page.version;
+  }, [draftBaseVersion, page.version]);
 
   const buildContent = useCallback((): PageDraftContent => {
     const base = buildPageDraftContent(
       mainImagePath,
       mainImageMeta,
+      page.main_image_id,
       elements,
     );
 
@@ -128,7 +164,7 @@ export function useDraftEditor({
         return meta ? { ...element, image_meta: meta } : element;
       }),
     };
-  }, [elements, imageMetaByPath, mainImageMeta, mainImagePath]);
+  }, [elements, imageMetaByPath, mainImageMeta, mainImagePath, page.main_image_id]);
 
   const persist = useCallback(
     async (content: PageDraftContent) => {
@@ -139,13 +175,21 @@ export function useDraftEditor({
       latestContentRef.current = content;
       setSaveStatus("saving");
       try {
-        await saveDraft.mutateAsync({ pageId: page.id, body: content });
+        await saveDraft.mutateAsync({
+          pageId: page.id,
+          body: content,
+          baseVersion: baseVersionRef.current,
+        });
         setSaveStatus("saved");
-      } catch {
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+          onDraftAccessLost?.();
+          return;
+        }
         setSaveStatus("error");
       }
     },
-    [accessToken, page.id, saveDraft],
+    [accessToken, onDraftAccessLost, page.id, saveDraft],
   );
 
   const clearScheduledSave = useCallback(() => {
@@ -362,7 +406,7 @@ export function useDraftEditor({
 
   const addMapElementAt = useCallback(
     (insertAtFlatIndex: number) => {
-      const created = newElement(page.id, { type: "map", places: [] });
+      const created = newElement(page.id, { type: "map", items: [] });
       setElements((previous) => {
         const flat = flattenPageElements(previous).map((element) => element.id);
         const insertAt = Math.max(0, Math.min(insertAtFlatIndex, flat.length));
@@ -380,13 +424,21 @@ export function useDraftEditor({
 
   const updateMapPlaces = useCallback(
     (elementId: string, places: MapPlace[]) => {
+      const items = mapPlacesToItems(places);
       setElements((previous) =>
         previous.map((element) =>
-          element.id === elementId ? { ...element, places } : element,
+          element.id === elementId
+            ? { ...element, items: items.map((item, index) => ({
+                ...item,
+                element_id: elementId,
+                page_id: page.id,
+                position: index,
+              })) }
+            : element,
         ),
       );
     },
-    [],
+    [page.id],
   );
 
   const resetToLive = useCallback(() => {

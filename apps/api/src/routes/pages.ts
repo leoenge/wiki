@@ -1,7 +1,6 @@
 import { Router } from "express";
 
 import { requireAuth } from "../middleware/requireAuth.js";
-import { createElement, createImageElements, deleteElement, reorderElements, updateElement } from "../services/elements.js";
 import {
   discardPageDraft,
   getPageDraft,
@@ -9,6 +8,7 @@ import {
   upsertPageDraft,
 } from "../services/drafts.js";
 import { createPage, updatePage } from "../services/pages.js";
+import { membersRouter } from "./members.js";
 
 export const pagesRouter = Router();
 
@@ -57,7 +57,11 @@ pagesRouter.post(
   requireAuth,
   async (req, res, next) => {
     try {
-      const result = await publishPageDraft(req.uid!, req.params.pageId);
+      const result = await publishPageDraft(
+        req.uid!,
+        req.params.pageId,
+        req.body,
+      );
       res.json(result);
     } catch (error) {
       next(error);
@@ -74,80 +78,4 @@ pagesRouter.delete("/:pageId/draft", requireAuth, async (req, res, next) => {
   }
 });
 
-pagesRouter.post("/:pageId/elements", requireAuth, async (req, res, next) => {
-  try {
-    const element = await createElement(req.uid!, req.params.pageId, req.body);
-    res.status(201).json(element);
-  } catch (error) {
-    next(error);
-  }
-});
-
-pagesRouter.post(
-  "/:pageId/elements/images",
-  requireAuth,
-  async (req, res, next) => {
-    try {
-      const elements = await createImageElements(
-        req.uid!,
-        req.params.pageId,
-        req.body,
-      );
-      res.status(201).json(elements);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-pagesRouter.put(
-  "/:pageId/elements/reorder",
-  requireAuth,
-  async (req, res, next) => {
-    try {
-      const elements = await reorderElements(
-        req.uid!,
-        req.params.pageId,
-        req.body,
-      );
-      res.json(elements);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-pagesRouter.patch(
-  "/:pageId/elements/:elementId",
-  requireAuth,
-  async (req, res, next) => {
-    try {
-      const element = await updateElement(
-        req.uid!,
-        req.params.pageId,
-        req.params.elementId,
-        req.body,
-      );
-      res.json(element);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-pagesRouter.delete(
-  "/:pageId/elements/:elementId",
-  requireAuth,
-  async (req, res, next) => {
-    try {
-      const elements = await deleteElement(
-        req.uid!,
-        req.params.pageId,
-        req.params.elementId,
-      );
-      res.json(elements);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
+pagesRouter.use("/:pageId/members", membersRouter);

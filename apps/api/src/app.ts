@@ -4,6 +4,7 @@ import { cors } from "./middleware/cors.js";
 import { authenticate } from "./middleware/authenticate.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { healthRouter } from "./routes/health.js";
+import { invitesRouter } from "./routes/invites.js";
 import { pagesRouter } from "./routes/pages.js";
 
 export function createApp() {
@@ -15,6 +16,7 @@ export function createApp() {
 
   const api = express.Router();
   api.use(healthRouter);
+  api.use("/invites", invitesRouter);
   api.use("/pages", pagesRouter);
   app.use("/api", api);
 

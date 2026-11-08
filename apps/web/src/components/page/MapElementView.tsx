@@ -1,21 +1,21 @@
 import { APIProvider } from "@vis.gl/react-google-maps";
 import { useState } from "react";
 
-import { parseMapPlaces, type PageElement } from "@ww/types";
+import { mapPlacesFromItems, type PageElementWithItems } from "@ww/types";
 
 import { readGoogleMapsConfig } from "../../lib/googleMaps.js";
 import { MapPlaceCard } from "./MapPlaceCard.js";
 import { PageMapCanvas } from "./PageMapCanvas.js";
 
 type MapElementViewProps = {
-  element: PageElement;
+  element: PageElementWithItems;
 };
 
 function MapElementViewContent({
   element,
   mapId,
 }: MapElementViewProps & { mapId: string }) {
-  const places = parseMapPlaces(element.places);
+  const places = mapPlacesFromItems(element.items ?? []);
   const [focusPlaceId, setFocusPlaceId] = useState<string | null>(null);
 
   if (places.length === 0) {

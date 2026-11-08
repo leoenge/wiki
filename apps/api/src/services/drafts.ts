@@ -1,75 +1,54 @@
 import {
-  assignmentsFromFlatOrder,
-  flattenPageElements,
   pageDraftContentSchema,
+  publishPageDraftBodySchema,
   upsertPageDraftBodySchema,
-  assertUniqueMapPlaceIds,
+  type Json,
   type PageDraft,
   type PageDraftContent,
-  type PageElement,
+  type PageElementWithItems,
   type PageWithElements,
 } from "@ww/types";
 
 import { db } from "../db.js";
 import { HttpError } from "../http.js";
-import { getOwnedPage } from "./pages.js";
+import { getMemberPage } from "./pages.js";
 import {
-  assertImagePathPrefix,
-  assertOwnedImage,
+  assertImageUsableOnPage,
   registerImage,
 } from "./storage.js";
 
-async function loadPageElements(pageId: string): Promise<PageElement[]> {
+async function loadPageElementsWithItems(
+  pageId: string,
+): Promise<PageElementWithItems[]> {
   const { data, error } = await db
     .from("page_elements")
-    .select("*")
+    .select("*, items:page_element_items(*)")
     .eq("page_id", pageId)
-    .order("position", { ascending: true });
+    .order("position", { ascending: true })
+    .order("position", {
+      ascending: true,
+      referencedTable: "page_element_items",
+    });
 
   if (error) {
     console.error(error);
     throw new HttpError(500, "Failed to load elements");
   }
 
-  return data ?? [];
-}
-
-async function applyFlatOrder(
-  pageId: string,
-  flatIds: string[],
-  elements: PageElement[],
-): Promise<void> {
-  const byId = new Map(elements.map((element) => [element.id, element]));
-  const assignments = assignmentsFromFlatOrder(flatIds, byId);
-
-  if (assignments.length !== flatIds.length) {
-    throw new HttpError(400, "Invalid element order");
-  }
-
-  const updates = assignments.map((assignment) =>
-    db
-      .from("page_elements")
-      .update({
-        parent_id: assignment.parent_id,
-        position: assignment.position,
-      })
-      .eq("id", assignment.id)
-      .eq("page_id", pageId),
-  );
-
-  const results = await Promise.all(updates);
-  const updateError = results.find((result) => result.error)?.error;
-  if (updateError) {
-    console.error(updateError);
-    throw new HttpError(500, "Failed to reorder elements");
-  }
+  return (data ?? []).map((row) => {
+    const items = (row.items ?? []) as PageElementWithItems["items"];
+    return {
+      ...row,
+      items: [...items].sort((a, b) => a.position - b.position),
+    };
+  });
 }
 
 export async function getPageDraft(
   uid: string,
   pageId: string,
 ): Promise<PageDraft | null> {
-  await getOwnedPage(uid, pageId);
+  await getMemberPage(uid, pageId);
 
   const { data, error } = await db
     .from("page_drafts")
@@ -86,14 +65,97 @@ export async function getPageDraft(
   return data;
 }
 
+async function validateDraftContent(
+  content: PageDraftContent,
+  uid: string,
+  pageId: string,
+): Promise<void> {
+  for (const element of content.elements) {
+    if (element.type === "image" && element.image_path) {
+      await assertImageUsableOnPage(uid, pageId, element.image_path);
+    }
+  }
+
+  if (content.main_image_path) {
+    await assertImageUsableOnPage(uid, pageId, content.main_image_path);
+  }
+}
+
+async function registerContentImages(
+  uid: string,
+  content: PageDraftContent,
+): Promise<PageDraftContent> {
+  let mainImageId: string | null = null;
+  if (content.main_image_path) {
+    mainImageId = await registerImage(uid, content.main_image_path, {
+      taken_at: content.main_image_meta?.taken_at,
+      latitude: content.main_image_meta?.latitude,
+      longitude: content.main_image_meta?.longitude,
+    });
+  }
+
+  const imageIdByPath = new Map<string, string>();
+  const elements = [];
+
+  for (const element of content.elements) {
+    if (element.type !== "image" || !element.image_path) {
+      elements.push(element);
+      continue;
+    }
+
+    let imageId = imageIdByPath.get(element.image_path);
+    if (!imageId) {
+      imageId = await registerImage(uid, element.image_path, {
+        taken_at: element.image_meta?.taken_at,
+        latitude: element.image_meta?.latitude,
+        longitude: element.image_meta?.longitude,
+      });
+      imageIdByPath.set(element.image_path, imageId);
+    }
+
+    elements.push({ ...element, image_id: imageId });
+  }
+
+  return {
+    ...content,
+    main_image_id: mainImageId,
+    elements,
+  };
+}
+
 export async function upsertPageDraft(
   uid: string,
   pageId: string,
   body: unknown,
 ): Promise<PageDraft> {
-  await getOwnedPage(uid, pageId);
+  const page = await getMemberPage(uid, pageId);
   const parsed = upsertPageDraftBodySchema.parse(body);
-  validateDraftContent(parsed, uid);
+  const { base_version: requestedBaseVersion, ...contentInput } = parsed;
+  const content = pageDraftContentSchema.parse(contentInput);
+
+  await validateDraftContent(content, uid, pageId);
+
+  const { data: existing, error: existingError } = await db
+    .from("page_drafts")
+    .select("id, base_version")
+    .eq("page_id", pageId)
+    .eq("user_id", uid)
+    .maybeSingle();
+
+  if (existingError) {
+    console.error(existingError);
+    throw new HttpError(500, "Failed to save draft");
+  }
+
+  let baseVersion: number;
+  if (existing) {
+    baseVersion = existing.base_version;
+  } else {
+    if (requestedBaseVersion > page.version) {
+      throw new HttpError(400, "Invalid base version");
+    }
+    baseVersion = requestedBaseVersion;
+  }
 
   const { data, error } = await db
     .from("page_drafts")
@@ -101,7 +163,8 @@ export async function upsertPageDraft(
       {
         page_id: pageId,
         user_id: uid,
-        content: parsed,
+        content: content as unknown as NonNullable<Json>,
+        base_version: baseVersion,
       },
       { onConflict: "page_id,user_id" },
     )
@@ -120,7 +183,7 @@ export async function discardPageDraft(
   uid: string,
   pageId: string,
 ): Promise<void> {
-  await getOwnedPage(uid, pageId);
+  await getMemberPage(uid, pageId);
 
   const { error } = await db
     .from("page_drafts")
@@ -134,44 +197,13 @@ export async function discardPageDraft(
   }
 }
 
-function validateDraftContent(content: PageDraftContent, uid: string): void {
-  const ids = new Set<string>();
-
-  for (const element of content.elements) {
-    if (ids.has(element.id)) {
-      throw new HttpError(400, "Invalid draft content");
-    }
-    ids.add(element.id);
-
-    if (element.type === "image") {
-      if (!element.image_path) {
-        throw new HttpError(400, "Invalid draft content");
-      }
-      assertImagePathPrefix(uid, element.image_path);
-    }
-
-    if (element.type === "map") {
-      if (!element.places) {
-        throw new HttpError(400, "Invalid draft content");
-      }
-      try {
-        assertUniqueMapPlaceIds(element.places);
-      } catch {
-        throw new HttpError(400, "Invalid draft content");
-      }
-    }
-  }
-
-  if (content.main_image_path) {
-    assertImagePathPrefix(uid, content.main_image_path);
-  }
-}
-
 export async function publishPageDraft(
   uid: string,
   pageId: string,
+  body: unknown,
 ): Promise<PageWithElements> {
-  await getOwnedPage(uid, pageId);
+  await getMemberPage(uid, pageId);
+  const { force = false } = publishPageDraftBodySchema.parse(body ?? {});
 
   const { data: draftRow, error: draftError } = await db
     .from("page_drafts")
@@ -190,148 +222,72 @@ export async function publishPageDraft(
   }
 
   const content = pageDraftContentSchema.parse(draftRow.content);
-  validateDraftContent(content, uid);
+  await validateDraftContent(content, uid, pageId);
+  const publishPayload = await registerContentImages(uid, content);
 
-  let mainImageId: string | null = null;
-  if (content.main_image_path) {
-    await assertOwnedImage(uid, content.main_image_path);
-    mainImageId = await registerImage(uid, content.main_image_path, {
-      taken_at: content.main_image_meta?.taken_at,
-      latitude: content.main_image_meta?.latitude,
-      longitude: content.main_image_meta?.longitude,
+  const { data: result, error: publishError } = await db.rpc(
+    "publish_page_draft",
+    {
+      p_page_id: pageId,
+      p_user_id: uid,
+      p_content: publishPayload as unknown as Json,
+      p_force: force,
+    },
+  );
+
+  if (publishError) {
+    if (publishError.message.includes("DRAFT_NOT_FOUND")) {
+      throw new HttpError(404, "Draft not found");
+    }
+    if (publishError.message.includes("NOT_A_MEMBER")) {
+      throw new HttpError(404, "Page not found");
+    }
+    console.error(publishError);
+    throw new HttpError(500, "Failed to publish draft");
+  }
+
+  const parsed = result as {
+    conflict: boolean;
+    version?: number;
+    last_published_by?: string | null;
+    last_published_at?: string | null;
+  };
+
+  if (parsed.conflict) {
+    let publisherName = "Someone";
+    if (parsed.last_published_by) {
+      const { data: profile } = await db
+        .from("profiles")
+        .select("first_name")
+        .eq("id", parsed.last_published_by)
+        .maybeSingle();
+      if (profile?.first_name) {
+        publisherName = profile.first_name;
+      }
+    }
+
+    throw new HttpError(409, "Page changed", {
+      code: "PAGE_CHANGED",
+      last_published_by: parsed.last_published_by
+        ? { id: parsed.last_published_by, first_name: publisherName }
+        : null,
+      last_published_at: parsed.last_published_at ?? null,
     });
   }
 
-  const { data: updatedPage, error: pageError } = await db
+  const { data: page, error: pageError } = await db
     .from("pages")
-    .update({
-      main_image_path: content.main_image_path,
-      main_image_id: mainImageId,
-    })
+    .select("*")
     .eq("id", pageId)
-    .eq("owner_id", uid)
-    .select()
     .single();
 
   if (pageError) {
     console.error(pageError);
-    throw new HttpError(500, "Failed to update page");
-  }
-
-  const existing = await loadPageElements(pageId);
-  const draftIds = new Set(content.elements.map((element) => element.id));
-
-  for (const element of existing) {
-    if (!draftIds.has(element.id)) {
-      const { error } = await db
-        .from("page_elements")
-        .delete()
-        .eq("id", element.id)
-        .eq("page_id", pageId);
-
-      if (error) {
-        console.error(error);
-        throw new HttpError(500, "Failed to publish draft");
-      }
-    }
-  }
-
-  const imageIdByPath = new Map<string, string>();
-
-  for (const element of content.elements) {
-    if (element.type !== "image" || !element.image_path) {
-      continue;
-    }
-
-    if (imageIdByPath.has(element.image_path)) {
-      continue;
-    }
-
-    await assertOwnedImage(uid, element.image_path);
-    const imageId = await registerImage(uid, element.image_path, {
-      taken_at: element.image_meta?.taken_at,
-      latitude: element.image_meta?.latitude,
-      longitude: element.image_meta?.longitude,
-    });
-    imageIdByPath.set(element.image_path, imageId);
-  }
-
-  const existingIds = new Set(existing.map((element) => element.id));
-
-  for (const element of content.elements) {
-    const baseRow = {
-      page_id: pageId,
-      type: element.type,
-      parent_id: element.parent_id,
-      position: element.position,
-      text:
-        element.type === "text" || element.type === "section"
-          ? (element.text ?? "")
-          : null,
-      image_path: element.type === "image" ? element.image_path! : null,
-      caption: element.type === "image" ? (element.caption ?? "") : null,
-      image_id:
-        element.type === "image" && element.image_path
-          ? (imageIdByPath.get(element.image_path) ?? null)
-          : null,
-      places: element.type === "map" ? element.places! : null,
-    };
-
-    if (existingIds.has(element.id)) {
-      const { error } = await db
-        .from("page_elements")
-        .update(baseRow)
-        .eq("id", element.id)
-        .eq("page_id", pageId);
-
-      if (error) {
-        console.error(error);
-        throw new HttpError(500, "Failed to publish draft");
-      }
-    } else {
-      const { error } = await db.from("page_elements").insert({
-        id: element.id,
-        ...baseRow,
-      });
-
-      if (error) {
-        console.error(error);
-        throw new HttpError(500, "Failed to publish draft");
-      }
-    }
-  }
-
-  const asElements: PageElement[] = content.elements.map((element) => ({
-    id: element.id,
-    page_id: pageId,
-    type: element.type,
-    parent_id: element.parent_id,
-    position: element.position,
-    text: element.text,
-    caption: element.caption ?? null,
-    image_path: element.image_path ?? null,
-    image_id: null,
-    places: element.type === "map" ? (element.places ?? []) : null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }));
-
-  const flatIds = flattenPageElements(asElements).map((element) => element.id);
-  await applyFlatOrder(pageId, flatIds, asElements);
-
-  const { error: deleteDraftError } = await db
-    .from("page_drafts")
-    .delete()
-    .eq("page_id", pageId)
-    .eq("user_id", uid);
-
-  if (deleteDraftError) {
-    console.error(deleteDraftError);
-    throw new HttpError(500, "Failed to clear draft");
+    throw new HttpError(500, "Failed to load page");
   }
 
   return {
-    page: updatedPage,
-    elements: await loadPageElements(pageId),
+    page,
+    elements: await loadPageElementsWithItems(pageId),
   };
 }

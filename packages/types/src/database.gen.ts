@@ -35,14 +35,14 @@ export type Database = {
                   ]
                 },"page_drafts": {
                   Row: {
-                    "content": NonNullable<Json>,"created_at": string,"id": string,"page_id": string,"updated_at": string,"user_id": string
+                    "base_version": number,"content": NonNullable<Json>,"created_at": string,"id": string,"page_id": string,"updated_at": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "content": NonNullable<Json>,"created_at"?: string,"id"?: string,"page_id": string,"updated_at"?: string,"user_id": string
+                    "base_version"?: number,"content": NonNullable<Json>,"created_at"?: string,"id"?: string,"page_id": string,"updated_at"?: string,"user_id": string
                   }
                   Update: {
-                    "content"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"page_id"?: string,"updated_at"?: string,"user_id"?: string
+                    "base_version"?: number,"content"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"page_id"?: string,"updated_at"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -53,16 +53,36 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"page_elements": {
+                },"page_element_items": {
                   Row: {
-                    "caption": string | null,"created_at": string,"id": string,"image_id": string | null,"image_path": string | null,"page_id": string,"parent_id": string | null,"places": Json | null,"position": number,"text": string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at": string
+                    "created_at": string,"data": NonNullable<Json>,"element_id": string,"id": string,"label": string,"page_id": string,"position": number,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_id"?: string | null,"image_path"?: string | null,"page_id": string,"parent_id"?: string | null,"places"?: Json | null,"position": number,"text"?: string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at"?: string
+                    "created_at"?: string,"data"?: NonNullable<Json>,"element_id": string,"id"?: string,"label": string,"page_id": string,"position": number,"updated_at"?: string
                   }
                   Update: {
-                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_id"?: string | null,"image_path"?: string | null,"page_id"?: string,"parent_id"?: string | null,"places"?: Json | null,"position"?: number,"text"?: string | null,"type"?: Database["public"]['Enums']["page_element_type"],"updated_at"?: string
+                    "created_at"?: string,"data"?: NonNullable<Json>,"element_id"?: string,"id"?: string,"label"?: string,"page_id"?: string,"position"?: number,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "page_element_items_element_page_fkey"
+      columns: ["element_id","page_id"]
+isOneToOne: false
+      referencedRelation: "page_elements"
+      referencedColumns: ["id","page_id"]
+    }
+                  ]
+                },"page_elements": {
+                  Row: {
+                    "caption": string | null,"created_at": string,"id": string,"image_id": string | null,"image_path": string | null,"page_id": string,"parent_id": string | null,"position": number,"text": string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_id"?: string | null,"image_path"?: string | null,"page_id": string,"parent_id"?: string | null,"position": number,"text"?: string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at"?: string
+                  }
+                  Update: {
+                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_id"?: string | null,"image_path"?: string | null,"page_id"?: string,"parent_id"?: string | null,"position"?: number,"text"?: string | null,"type"?: Database["public"]['Enums']["page_element_type"],"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -85,19 +105,57 @@ isOneToOne: false
       referencedColumns: ["id","page_id"]
     }
                   ]
-                },"pages": {
+                },"page_members": {
                   Row: {
-                    "created_at": string,"id": string,"main_image_id": string | null,"main_image_path": string | null,"name": string,"owner_id": string,"tag": string,"updated_at": string
+                    "added_by": string | null,"created_at": string,"page_id": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"id"?: string,"main_image_id"?: string | null,"main_image_path"?: string | null,"name": string,"owner_id": string,"tag": string,"updated_at"?: string
+                    "added_by"?: string | null,"created_at"?: string,"page_id": string,"user_id": string
                   }
                   Update: {
-                    "created_at"?: string,"id"?: string,"main_image_id"?: string | null,"main_image_path"?: string | null,"name"?: string,"owner_id"?: string,"tag"?: string,"updated_at"?: string
+                    "added_by"?: string | null,"created_at"?: string,"page_id"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "page_members_added_by_fkey"
+      columns: ["added_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "page_members_page_id_fkey"
+      columns: ["page_id"]
+isOneToOne: false
+      referencedRelation: "pages"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "page_members_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"pages": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"id": string,"invite_token": string,"last_published_at": string | null,"last_published_by": string | null,"main_image_id": string | null,"main_image_path": string | null,"name": string,"tag": string,"updated_at": string,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"invite_token": string,"last_published_at"?: string | null,"last_published_by"?: string | null,"main_image_id"?: string | null,"main_image_path"?: string | null,"name": string,"tag": string,"updated_at"?: string,"version"?: number
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"invite_token"?: string,"last_published_at"?: string | null,"last_published_by"?: string | null,"main_image_id"?: string | null,"main_image_path"?: string | null,"name"?: string,"tag"?: string,"updated_at"?: string,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "pages_last_published_by_fkey"
+      columns: ["last_published_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "pages_main_image_id_fkey"
       columns: ["main_image_id"]
 isOneToOne: false
@@ -125,7 +183,24 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            [_ in never]: never
+            "can_read_image_path":
+{ Args: { "p_path": string }; Returns: boolean
+                           },
+"find_user_id_by_email":
+{ Args: { "p_email": string }; Returns: string
+                           },
+"is_page_member":
+{ Args: { "p_page_id": string }; Returns: boolean
+                           },
+"publish_page_draft":
+{ Args: { "p_content": Json,"p_force"?: boolean,"p_page_id": string,"p_user_id": string }; Returns: Json
+                           },
+"remove_page_member":
+{ Args: { "p_page_id": string,"p_user_id": string }; Returns: undefined
+                           },
+"shares_page_with":
+{ Args: { "p_user_id": string }; Returns: boolean
+                           }
           }
           Enums: {
             "page_element_type": "image"|"text"|"section"|"map"

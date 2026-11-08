@@ -1,7 +1,11 @@
 import { APIProvider } from "@vis.gl/react-google-maps";
 import { useState } from "react";
 
-import { parseMapPlaces, type MapPlace, type PageElement } from "@ww/types";
+import {
+  mapPlacesFromItems,
+  type MapPlace,
+  type PageElementWithItems,
+} from "@ww/types";
 
 import { readGoogleMapsConfig } from "../../lib/googleMaps.js";
 import { MapPlaceCard } from "./MapPlaceCard.js";
@@ -9,7 +13,7 @@ import { PageMapCanvas } from "./PageMapCanvas.js";
 import { PlacePicker, type PendingMapPlace } from "./PlacePicker.js";
 
 type MapElementEditorProps = {
-  element: PageElement;
+  element: PageElementWithItems;
   onPlacesChange: (elementId: string, places: MapPlace[]) => void;
 };
 
@@ -18,7 +22,7 @@ function MapElementEditorContent({
   mapId,
   onPlacesChange,
 }: MapElementEditorProps & { mapId: string }) {
-  const places = parseMapPlaces(element.places);
+  const places = mapPlacesFromItems(element.items ?? []);
   const [focusPlaceId, setFocusPlaceId] = useState<string | null>(null);
 
   function addPlace(pending: PendingMapPlace) {

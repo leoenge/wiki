@@ -1,16 +1,22 @@
 import { GearIcon, PencilSimpleIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useBlocker, useParams } from "react-router-dom";
 
-import type { Page, PageDraftContent, PageElement } from "@ww/types";
+import type {
+  Page,
+  PageDraftContent,
+  PageElementWithItems,
+} from "@ww/types";
 import { pageDraftContentSchema } from "@ww/types";
 
+import { ApiError } from "../api/client.js";
 import {
   useDiscardPageDraft,
   usePageDraft,
   usePublishPageDraft,
 } from "../api/drafts.js";
+import { displayName, useProfiles } from "../api/profiles.js";
 import { pageByTagQueryKey, pageElementsQueryKey } from "../api/queries.js";
 import { BackLink } from "../components/BackLink.js";
 import { Container } from "../components/Container.js";
@@ -26,6 +32,9 @@ import type { AddImageItem } from "../components/page/AddImageDialog.js";
 import { supabase } from "../lib/supabase.js";
 import { useImageUrl } from "../lib/useImageUrl.js";
 import { StorageImage } from "../components/StorageImage.js";
+import { Dialog } from "../components/Dialog.js";
+import { Button } from "../components/Button.js";
+import { formatRelativeTime } from "../lib/relativeTime.js";
 
 async function fetchPageByTag(tag: string): Promise<Page | null> {
   const { data, error } = await supabase
@@ -41,19 +50,36 @@ async function fetchPageByTag(tag: string): Promise<Page | null> {
   return data;
 }
 
-async function fetchPageElements(pageId: string): Promise<PageElement[]> {
+async function fetchPageElements(
+  pageId: string,
+): Promise<PageElementWithItems[]> {
   const { data, error } = await supabase
     .from("page_elements")
-    .select("*")
+    .select("*, items:page_element_items(*)")
     .eq("page_id", pageId)
-    .order("position", { ascending: true });
+    .order("position", { ascending: true })
+    .order("position", {
+      ascending: true,
+      referencedTable: "page_element_items",
+    });
 
   if (error) {
     throw error;
   }
 
-  return data;
+  return (data ?? []).map((row) => {
+    const items = (row.items ?? []) as PageElementWithItems["items"];
+    return {
+      ...row,
+      items: [...items].sort((a, b) => a.position - b.position),
+    };
+  });
 }
+
+type PublishConflictDetails = {
+  last_published_by: { id: string; first_name: string } | null;
+  last_published_at: string | null;
+};
 
 function parseDraftContent(raw: unknown): PageDraftContent | null {
   const parsed = pageDraftContentSchema.safeParse(raw);
@@ -167,7 +193,7 @@ function PageTopBar({
 
 type LoadedPageProps = {
   page: Page;
-  liveElements: PageElement[];
+  liveElements: PageElementWithItems[];
   accessToken: string;
   userId: string;
 };
@@ -198,6 +224,8 @@ function LoadedPageView({
   >({});
   const [imageSubmitting, setImageSubmitting] = useState(false);
   const [mainUploading, setMainUploading] = useState(false);
+  const [publishConflict, setPublishConflict] =
+    useState<PublishConflictDetails | null>(null);
 
   useEffect(() => {
     if (draftContent) {
@@ -205,14 +233,41 @@ function LoadedPageView({
     }
   }, [draftContent]);
 
+  const staleDraft =
+    isEditing &&
+    draftQuery.data &&
+    draftQuery.data.base_version < page.version;
+
+  const publisherId = page.last_published_by;
+  const publisherProfiles = useProfiles(
+    staleDraft && publisherId ? [publisherId] : [],
+  );
+  const stalePublisherName = publisherId
+    ? displayName(publisherProfiles.getProfile(publisherId), {
+        loading: publisherProfiles.isLoading,
+      })
+    : "Someone";
+
+  const resetEditorRef = useRef<(() => void) | null>(null);
+
   const editor = useDraftEditor({
     page,
     liveElements,
     liveMainImagePath: page.main_image_path,
     draftContent,
+    draftBaseVersion: draftQuery.data?.base_version,
     isEditing,
     accessToken,
+    onDraftAccessLost: () => {
+      window.alert(
+        "You no longer have access to edit this page. Your changes could not be saved.",
+      );
+      resetEditorRef.current?.();
+      setIsEditing(false);
+    },
   });
+
+  resetEditorRef.current = editor.resetToLive;
 
   useBlocker(isEditing);
 
@@ -332,10 +387,30 @@ function LoadedPageView({
     }
   }
 
-  async function onPublish() {
-    await editor.saveNow();
-    await publishDraft.mutateAsync(page.id);
-    setIsEditing(false);
+  async function onPublish(force = false) {
+    try {
+      await editor.saveNow();
+      await publishDraft.mutateAsync({ pageId: page.id, force });
+      setIsEditing(false);
+      setPublishConflict(null);
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.data.code === "PAGE_CHANGED"
+      ) {
+        setPublishConflict({
+          last_published_by:
+            (error.data.last_published_by as PublishConflictDetails["last_published_by"]) ??
+            null,
+          last_published_at:
+            typeof error.data.last_published_at === "string"
+              ? error.data.last_published_at
+              : null,
+        });
+        return;
+      }
+      throw error;
+    }
   }
 
   async function onDiscard() {
@@ -376,10 +451,55 @@ function LoadedPageView({
         accessToken={accessToken}
       />
 
+      {staleDraft ? (
+        <p className="text-muted mt-6 text-sm leading-relaxed">
+          {stalePublisherName} published changes since this draft started.
+        </p>
+      ) : null}
+
       <header className="mt-8">
         <h1 className="text-4xl tracking-tight">{page.name}</h1>
         <p className="text-muted text-base">/{page.tag}</p>
       </header>
+
+      <Dialog
+        open={publishConflict !== null}
+        onClose={() => setPublishConflict(null)}
+        title="Page changed"
+      >
+        {publishConflict ? (
+          <div className="space-y-6">
+            <p className="text-muted text-sm leading-relaxed">
+              {publishConflict.last_published_by?.first_name ?? "Someone"}{" "}
+              published changes{" "}
+              {publishConflict.last_published_at
+                ? formatRelativeTime(publishConflict.last_published_at)
+                : "recently"}
+              . If you continue, their version is replaced by yours. Changes are
+              not merged.
+            </p>
+            <div className="flex flex-col gap-3">
+              <Button
+                type="button"
+                variant="primary"
+                width="full"
+                disabled={publishDraft.isPending}
+                onClick={() => void onPublish(true)}
+              >
+                Replace with my version
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                width="full"
+                onClick={() => setPublishConflict(null)}
+              >
+                Keep editing
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Dialog>
 
       <div className="mt-10">
         <MainImageBlock

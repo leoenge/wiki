@@ -10,6 +10,7 @@ import { Dialog } from "../Dialog.js";
 import { TextField } from "../TextField.js";
 import { ViewSwitcher } from "../ViewSwitcher.js";
 import { sanitizeTagInput } from "../../lib/tags.js";
+import { PageShareSettings } from "./PageShareSettings.js";
 
 type SettingsView = "main" | "share";
 
@@ -185,9 +186,7 @@ export function PageSettingsDialog({
             </form>
           ),
           share: (
-            <p className="text-muted text-sm leading-relaxed">
-              Sharing arrives soon.
-            </p>
+            <PageShareSettings page={page} accessToken={accessToken} />
           ),
         }}
       />

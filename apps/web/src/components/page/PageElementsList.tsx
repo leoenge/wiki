@@ -23,9 +23,11 @@ import {
 } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
-import type { MapPlace, PageElement } from "@ww/types";
+import type { MapPlace, PageElementWithItems } from "@ww/types";
+import { useQuery } from "@tanstack/react-query";
 
 import { displayName, useProfiles } from "../../api/profiles.js";
+import { supabase } from "../../lib/supabase.js";
 import { useAuth } from "../../lib/auth/AuthProvider.js";
 import { displayNameFromUser } from "../../lib/userDisplay.js";
 import {
@@ -43,7 +45,7 @@ import { SwipeToDeleteRow } from "./SwipeToDeleteRow.js";
 import { TextElementEditor } from "./TextElementEditor.js";
 
 type PageElementsListProps = {
-  elements: PageElement[];
+  elements: PageElementWithItems[];
   editable: boolean;
   collapsedSectionIds: Readonly<Record<string, true>>;
   onToggleSectionCollapsed: (sectionId: string) => void;
@@ -83,7 +85,7 @@ function ImageElementRow({
   element,
   onExpand,
 }: {
-  element: PageElement;
+  element: PageElementWithItems;
   onExpand: (payload: { path: string; caption: string }) => void;
 }) {
   if (!element.image_path) {
@@ -117,7 +119,7 @@ function ImageElementRow({
 }
 
 type ElementRowProps = {
-  element: PageElement;
+  element: PageElementWithItems;
   editable: boolean;
   collapsedSectionIds: Readonly<Record<string, true>>;
   onToggleSectionCollapsed: (sectionId: string) => void;
@@ -299,7 +301,24 @@ export function PageElementsList({
     path: string;
     caption: string;
   } | null>(null);
-  const expandedUploaderId = expandedImage?.path.split("/")[0] ?? "";
+  const expandedImagePath = expandedImage?.path ?? null;
+  const imageMetaQuery = useQuery({
+    queryKey: ["image-meta", expandedImagePath],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("images")
+        .select("owner_id")
+        .eq("path", expandedImagePath!)
+        .maybeSingle();
+      if (error) {
+        throw error;
+      }
+      return data;
+    },
+    enabled: Boolean(expandedImagePath),
+  });
+
+  const expandedUploaderId = imageMetaQuery.data?.owner_id ?? "";
   const { getProfile, isLoading: profilesLoading } = useProfiles(
     expandedUploaderId ? [expandedUploaderId] : [],
   );

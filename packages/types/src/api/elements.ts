@@ -3,6 +3,7 @@ import { z } from "zod";
 import { imageMetadataFieldsSchema } from "./images.js";
 import type { Json } from "../database.gen.js";
 import type { Tables } from "../helpers.js";
+import type { PageElementWithItems } from "./items.js";
 
 export type PageElement = Tables<"page_elements">;
 
@@ -102,5 +103,5 @@ export type ReorderElementsBody = z.infer<typeof reorderElementsBodySchema>;
 
 export type PageWithElements = {
   page: Tables<"pages">;
-  elements: PageElement[];
+  elements: PageElementWithItems[];
 };

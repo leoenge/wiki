@@ -21,6 +21,72 @@ export async function assertOwnedImage(uid: string, path: string): Promise<void>
   }
 }
 
+async function isImageOnPage(
+  pageId: string,
+  path: string,
+): Promise<boolean> {
+  const { data: pageRow, error: pageError } = await db
+    .from("pages")
+    .select("main_image_path")
+    .eq("id", pageId)
+    .maybeSingle();
+
+  if (pageError) {
+    console.error(pageError);
+    throw new HttpError(500, "Failed to validate image");
+  }
+
+  if (pageRow?.main_image_path === path) {
+    return true;
+  }
+
+  const { data: elementRow, error: elementError } = await db
+    .from("page_elements")
+    .select("id")
+    .eq("page_id", pageId)
+    .eq("image_path", path)
+    .limit(1)
+    .maybeSingle();
+
+  if (elementError) {
+    console.error(elementError);
+    throw new HttpError(500, "Failed to validate image");
+  }
+
+  return Boolean(elementRow);
+}
+
+export async function assertImageUsableOnPage(
+  uid: string,
+  pageId: string,
+  path: string,
+): Promise<void> {
+  const prefix = `${uid}/`;
+  if (path.startsWith(prefix)) {
+    await assertOwnedImage(uid, path);
+    return;
+  }
+
+  if (!(await isImageOnPage(pageId, path))) {
+    throw new HttpError(400, "Invalid image path");
+  }
+
+  const { data, error } = await db
+    .from("images")
+    .select("id")
+    .eq("path", path)
+    .maybeSingle();
+
+  if (error) {
+    console.error(error);
+    throw new HttpError(500, "Failed to validate image");
+  }
+
+  if (!data) {
+    throw new HttpError(400, "Image not found");
+  }
+}
+
 export async function registerImage(
   uid: string,
   path: string,

@@ -4,7 +4,7 @@ import type {
   ImageMetadataFields,
   PageDraft,
   PageDraftContent,
-  PageElement,
+  PageElementWithItems,
   PageWithElements,
 } from "@ww/types";
 
@@ -45,13 +45,15 @@ export function useSavePageDraft(accessToken: string | undefined) {
     mutationFn: ({
       pageId,
       body,
+      baseVersion,
     }: {
       pageId: string;
       body: PageDraftContent;
+      baseVersion: number;
     }) =>
       apiFetch<PageDraft>(`/api/pages/${pageId}/draft`, accessToken!, {
         method: "PUT",
-        body: JSON.stringify(body),
+        body: JSON.stringify({ ...body, base_version: baseVersion }),
       }),
     onSuccess: (draft) => {
       queryClient.setQueryData(pageDraftQueryKey(draft.page_id), draft);
@@ -66,16 +68,28 @@ export function usePublishPageDraft(
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (pageId: string) =>
+    mutationFn: ({
+      pageId,
+      force = false,
+    }: {
+      pageId: string;
+      force?: boolean;
+    }) =>
       apiFetch<PageWithElements>(
         `/api/pages/${pageId}/draft/publish`,
         accessToken!,
-        { method: "POST" },
+        {
+          method: "POST",
+          body: JSON.stringify({ force }),
+        },
       ),
-    onSuccess: (result, pageId) => {
+    onSuccess: (result, variables) => {
       queryClient.setQueryData(pageByTagQueryKey(pageTag), result.page);
-      queryClient.setQueryData(pageElementsQueryKey(pageId), result.elements);
-      queryClient.setQueryData(pageDraftQueryKey(pageId), null);
+      queryClient.setQueryData(
+        pageElementsQueryKey(variables.pageId),
+        result.elements,
+      );
+      queryClient.setQueryData(pageDraftQueryKey(variables.pageId), null);
     },
   });
 }
@@ -94,4 +108,4 @@ export function useDiscardPageDraft(accessToken: string | undefined) {
   });
 }
 
-export type { PageDraftContent, ImageMetadataFields, PageElement };
+export type { PageDraftContent, ImageMetadataFields, PageElementWithItems };

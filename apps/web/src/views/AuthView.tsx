@@ -1,6 +1,6 @@
 import { SignInIcon } from "@phosphor-icons/react";
 import { type FormEvent, useState } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, useSearchParams } from "react-router-dom";
 
 import { BackLink } from "../components/BackLink.js";
 import { Button } from "../components/Button.js";
@@ -12,6 +12,7 @@ import { useAuth } from "../lib/auth/AuthProvider.js";
 export function AuthView() {
   const { user } = useAuth();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const redirectState = location.state as { from?: string } | null;
   const from =
     typeof redirectState?.from === "string" &&
@@ -20,7 +21,9 @@ export function AuthView() {
       ? redirectState.from
       : "/";
 
-  const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
+  const initialMode =
+    searchParams.get("mode") === "sign-up" ? "sign-up" : "sign-in";
+  const [mode, setMode] = useState<"sign-in" | "sign-up">(initialMode);
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

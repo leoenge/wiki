@@ -11,12 +11,51 @@ function isUniqueViolation(error: { code?: string }): boolean {
   return error.code === "23505";
 }
 
+export async function getMemberPage(
+  uid: string,
+  pageId: string,
+): Promise<Page> {
+  const { data: membership, error: memberError } = await db
+    .from("page_members")
+    .select("page_id")
+    .eq("page_id", pageId)
+    .eq("user_id", uid)
+    .maybeSingle();
+
+  if (memberError) {
+    console.error(memberError);
+    throw new HttpError(500, "Failed to load page");
+  }
+
+  if (!membership) {
+    throw new HttpError(404, "Page not found");
+  }
+
+  const { data, error } = await db
+    .from("pages")
+    .select("*")
+    .eq("id", pageId)
+    .single();
+
+  if (error) {
+    console.error(error);
+    throw new HttpError(500, "Failed to load page");
+  }
+
+  return data;
+}
+
 export async function createPage(uid: string, body: unknown): Promise<Page> {
   const parsed = createPageBodySchema.parse(body);
 
   const { data, error } = await db
     .from("pages")
-    .insert({ owner_id: uid, name: parsed.name, tag: parsed.tag })
+    // invite_token defaults in the database.
+    .insert({
+      created_by: uid,
+      name: parsed.name,
+      tag: parsed.tag,
+    } as never)
     .select()
     .single();
 
@@ -31,35 +70,12 @@ export async function createPage(uid: string, body: unknown): Promise<Page> {
   return data;
 }
 
-export async function getOwnedPage(
-  uid: string,
-  pageId: string,
-): Promise<Page> {
-  const { data, error } = await db
-    .from("pages")
-    .select("*")
-    .eq("id", pageId)
-    .eq("owner_id", uid)
-    .maybeSingle();
-
-  if (error) {
-    console.error(error);
-    throw new HttpError(500, "Failed to load page");
-  }
-
-  if (!data) {
-    throw new HttpError(404, "Page not found");
-  }
-
-  return data;
-}
-
 export async function updatePage(
   uid: string,
   pageId: string,
   body: unknown,
 ): Promise<Page> {
-  await getOwnedPage(uid, pageId);
+  await getMemberPage(uid, pageId);
   const parsed = updatePageBodySchema.parse(body);
 
   const patch: { name?: string; tag?: string } = {};
@@ -74,7 +90,6 @@ export async function updatePage(
     .from("pages")
     .update(patch)
     .eq("id", pageId)
-    .eq("owner_id", uid)
     .select()
     .single();
 
