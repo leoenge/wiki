@@ -6,6 +6,9 @@
   --muted: #6b7280;
   --surface: #f1f3f5;
   --surface-strong: #eaecf0;
+  --wiki-thumb-bg: #f8f9fa;
+  --wiki-thumb-border: #c8ccd1;
+  --wiki-thumb-muted: #54595d;
 }
 
 @theme inline {
@@ -14,6 +17,9 @@
   --color-muted: var(--muted);
   --color-surface: var(--surface);
   --color-surface-strong: var(--surface-strong);
+  --color-wiki-thumb-bg: var(--wiki-thumb-bg);
+  --color-wiki-thumb-border: var(--wiki-thumb-border);
+  --color-wiki-thumb-muted: var(--wiki-thumb-muted);
   --font-sans: "Satoshi", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Libre Baskerville", ui-serif, Georgia, serif;
 }

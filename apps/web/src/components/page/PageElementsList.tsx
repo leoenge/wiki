@@ -45,7 +45,6 @@ import {
   mergeVisibleFlatOrder,
   visibleFlatIds,
 } from "../../lib/pageElementsTree.js";
-import { StorageImage } from "../StorageImage.js";
 import { ListElementEditor } from "./ListElementEditor.js";
 import { ListElementView } from "./ListElementView.js";
 import { MapElementEditor } from "./MapElementEditor.js";
@@ -54,6 +53,7 @@ import { ReviewElementEditor } from "./ReviewElementEditor.js";
 import { ReviewElementView } from "./ReviewElementView.js";
 import { SectionHeadingEditor } from "./SectionHeadingEditor.js";
 import { ExpandedImageViewer } from "./ExpandedImageViewer.js";
+import { WikiImageThumb } from "./WikiImageThumb.js";
 import { SwipeToDeleteRow } from "./SwipeToDeleteRow.js";
 import { TextElementEditor } from "./TextElementEditor.js";
 
@@ -150,28 +150,16 @@ function ImageElementRow({
   }
 
   return (
-    <div className="bg-surface/50 flex min-w-0 flex-1 gap-4 rounded-xs">
-      <button
-        type="button"
-        onClick={() =>
-          onExpand({
-            path: element.image_path!,
-            caption: element.caption ?? "",
-          })
-        }
-        className="shrink-0 cursor-zoom-in"
-        aria-label="Expand image"
-        data-swipe-exclude
-      >
-        <StorageImage
-          path={element.image_path}
-          className="size-40 rounded-xs object-cover"
-        />
-      </button>
-      <div className="py-2">
-        <p className="text-base leading-relaxed">{element.caption ?? ""}</p>
-      </div>
-    </div>
+    <WikiImageThumb
+      path={element.image_path}
+      caption={element.caption ?? ""}
+      onExpand={() =>
+        onExpand({
+          path: element.image_path!,
+          caption: element.caption ?? "",
+        })
+      }
+    />
   );
 }
 
