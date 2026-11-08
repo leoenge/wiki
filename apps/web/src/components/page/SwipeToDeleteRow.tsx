@@ -8,6 +8,7 @@ type SwipeToDeleteRowProps = {
   openElementId: string | null;
   onOpenChange: (elementId: string | null) => void;
   onDelete: () => void;
+  deleteHint?: string | null;
   children: React.ReactNode;
 };
 
@@ -23,6 +24,7 @@ export function SwipeToDeleteRow({
   openElementId,
   onOpenChange,
   onDelete,
+  deleteHint,
   children,
 }: SwipeToDeleteRowProps) {
   const [offset, setOffset] = useState(0);
@@ -117,10 +119,15 @@ export function SwipeToDeleteRow({
           onOpenChange(null);
           onDelete();
         }}
-        className="bg-red-600/90 text-background absolute inset-y-0 right-0 flex w-14 items-center justify-center"
+        className="bg-red-600/90 text-background absolute inset-y-0 right-0 flex w-14 flex-col items-center justify-center gap-1 px-1"
         aria-label="Remove element"
       >
         <TrashIcon size={22} weight="bold" />
+        {deleteHint ? (
+          <span className="text-[10px] leading-tight font-normal opacity-90">
+            {deleteHint}
+          </span>
+        ) : null}
       </button>
       <div
         className="bg-background relative touch-pan-y"

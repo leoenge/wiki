@@ -9,6 +9,7 @@ import { AuthProvider, RequireAuth } from "./lib/auth/AuthProvider.js";
 import { AuthView } from "./views/AuthView.js";
 import { CreatePageView } from "./views/CreatePageView.js";
 import { JoinView } from "./views/JoinView.js";
+import { CommentsView } from "./views/CommentsView.js";
 import { PageView } from "./views/PageView.js";
 import { PagesView } from "./views/PagesView.js";
 
@@ -26,6 +27,14 @@ const router = createBrowserRouter([
   },
   { path: "/auth", element: <AuthView /> },
   { path: "/join/:token", element: <JoinView /> },
+  {
+    path: "/:tag/e/:elementId",
+    element: (
+      <RequireAuth>
+        <CommentsView />
+      </RequireAuth>
+    ),
+  },
   {
     path: "/:tag",
     element: (

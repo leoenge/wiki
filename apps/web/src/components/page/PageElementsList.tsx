@@ -18,14 +18,23 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   CaretDownIcon,
   CaretRightIcon,
+  ChatCircleIcon,
   DotsSixVerticalIcon,
   PlusIcon,
 } from "@phosphor-icons/react";
+import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
-import type { MapPlace, PageElementWithItems } from "@ww/types";
+import type {
+  DraftElementItem,
+  ListStyle,
+  MapPlace,
+  PageElementWithItems,
+} from "@ww/types";
 import { useQuery } from "@tanstack/react-query";
 
+import { type ItemReviewSummary, usePageReviews } from "../../api/reviews.js";
+import { usePageCommentCounts } from "../../api/comments.js";
 import { displayName, useProfiles } from "../../api/profiles.js";
 import { supabase } from "../../lib/supabase.js";
 import { useAuth } from "../../lib/auth/AuthProvider.js";
@@ -37,8 +46,12 @@ import {
   visibleFlatIds,
 } from "../../lib/pageElementsTree.js";
 import { StorageImage } from "../StorageImage.js";
+import { ListElementEditor } from "./ListElementEditor.js";
+import { ListElementView } from "./ListElementView.js";
 import { MapElementEditor } from "./MapElementEditor.js";
 import { MapElementView } from "./MapElementView.js";
+import { ReviewElementEditor } from "./ReviewElementEditor.js";
+import { ReviewElementView } from "./ReviewElementView.js";
 import { SectionHeadingEditor } from "./SectionHeadingEditor.js";
 import { ExpandedImageViewer } from "./ExpandedImageViewer.js";
 import { SwipeToDeleteRow } from "./SwipeToDeleteRow.js";
@@ -47,14 +60,58 @@ import { TextElementEditor } from "./TextElementEditor.js";
 type PageElementsListProps = {
   elements: PageElementWithItems[];
   editable: boolean;
+  pageId?: string;
+  pageTag?: string;
   collapsedSectionIds: Readonly<Record<string, true>>;
   onToggleSectionCollapsed: (sectionId: string) => void;
   onUpdateElementText?: (elementId: string, text: string) => void;
   onUpdateMapPlaces?: (elementId: string, places: MapPlace[]) => void;
+  onUpdateElementItems?: (elementId: string, items: DraftElementItem[]) => void;
+  onSetListStyle?: (elementId: string, style: ListStyle) => void;
   onDeleteElement?: (elementId: string) => void;
   onReorderToFlatIds?: (flatIds: string[]) => void;
   onInsertAtFlatIndex?: (flatInsertIndex: number) => void;
 };
+
+export type ElementContentProps = {
+  element: PageElementWithItems;
+  editable?: boolean;
+  viewMode?: boolean;
+  pageId?: string;
+  byItemId?: Map<string, ItemReviewSummary>;
+  collapsedSectionIds?: Readonly<Record<string, true>>;
+  onToggleSectionCollapsed?: (sectionId: string) => void;
+  onExpandImage?: (payload: { path: string; caption: string }) => void;
+  onUpdateElementText?: (elementId: string, text: string) => void;
+  onUpdateMapPlaces?: (elementId: string, places: MapPlace[]) => void;
+  onUpdateElementItems?: (elementId: string, items: DraftElementItem[]) => void;
+  onSetListStyle?: (elementId: string, style: ListStyle) => void;
+  removeNoteForItem?: (itemId: string) => string | null;
+  showCommentLink?: boolean;
+  commentCount?: number;
+  pageTag?: string;
+};
+
+function ElementCommentLink({
+  tag,
+  elementId,
+  count,
+}: {
+  tag: string;
+  elementId: string;
+  count: number;
+}) {
+  return (
+    <Link
+      to={`/${tag}/e/${elementId}`}
+      className="text-muted hover:text-foreground inline-flex items-center gap-1 text-sm"
+      data-swipe-exclude
+    >
+      <ChatCircleIcon size={20} weight="duotone" />
+      {count > 0 ? <span>{count}</span> : null}
+    </Link>
+  );
+}
 
 function ElementInsertSlot({
   onClick,
@@ -121,6 +178,11 @@ function ImageElementRow({
 type ElementRowProps = {
   element: PageElementWithItems;
   editable: boolean;
+  viewMode: boolean;
+  pageId?: string;
+  pageTag?: string;
+  byItemId?: Map<string, ItemReviewSummary>;
+  commentCount?: number;
   collapsedSectionIds: Readonly<Record<string, true>>;
   onToggleSectionCollapsed: (sectionId: string) => void;
   openSwipeElementId: string | null;
@@ -129,34 +191,110 @@ type ElementRowProps = {
   onExpandImage: (payload: { path: string; caption: string }) => void;
   onUpdateElementText?: (elementId: string, text: string) => void;
   onUpdateMapPlaces?: (elementId: string, places: MapPlace[]) => void;
+  onUpdateElementItems?: (elementId: string, items: DraftElementItem[]) => void;
+  onSetListStyle?: (elementId: string, style: ListStyle) => void;
+  removeNoteForItem?: (itemId: string) => string | null;
+  deleteHint?: string | null;
   isDragging?: boolean;
   setNodeRef?: (node: HTMLElement | null) => void;
   style?: CSSProperties;
 };
 
-function ElementRowContent({
+export function ElementContent({
   element,
-  editable,
-  collapsedSectionIds,
+  editable = false,
+  viewMode = false,
+  pageId,
+  byItemId,
+  collapsedSectionIds = {},
   onToggleSectionCollapsed,
   onExpandImage,
   onUpdateElementText,
   onUpdateMapPlaces,
-}: Pick<
-  ElementRowProps,
-  | "element"
-  | "editable"
-  | "collapsedSectionIds"
-  | "onToggleSectionCollapsed"
-  | "onExpandImage"
-  | "onUpdateElementText"
-  | "onUpdateMapPlaces"
->) {
+  onUpdateElementItems,
+  onSetListStyle,
+  removeNoteForItem,
+  showCommentLink = false,
+  commentCount = 0,
+  pageTag,
+}: ElementContentProps) {
   const isSection = element.type === "section";
   const expanded = isSection && !collapsedSectionIds[element.id];
+  const showReviews = viewMode && pageId && byItemId;
+
+  const elementBody =
+    element.type === "section" ? (
+      <SectionHeadingEditor
+        element={element}
+        editable={editable}
+        onTextChange={onUpdateElementText}
+      />
+    ) : element.type === "text" ? (
+      <TextElementEditor
+        element={element}
+        editable={editable}
+        onTextChange={onUpdateElementText}
+      />
+    ) : element.type === "map" ? (
+      editable && onUpdateMapPlaces ? (
+        <MapElementEditor
+          element={element}
+          onPlacesChange={onUpdateMapPlaces}
+          removeNoteForItem={removeNoteForItem}
+        />
+      ) : (
+        <MapElementView
+          element={element}
+          pageId={showReviews ? pageId : undefined}
+          byItemId={byItemId}
+        />
+      )
+    ) : element.type === "list" ? (
+      editable && onUpdateElementItems && onSetListStyle ? (
+        <ListElementEditor
+          element={element}
+          onItemsChange={onUpdateElementItems}
+          onListStyleChange={onSetListStyle}
+          removeNoteForItem={removeNoteForItem}
+        />
+      ) : (
+        <ListElementView element={element} />
+      )
+    ) : element.type === "review" ? (
+      editable && onUpdateElementItems ? (
+        <ReviewElementEditor
+          element={element}
+          onItemsChange={onUpdateElementItems}
+          removeNoteForItem={removeNoteForItem}
+        />
+      ) : (
+        <ReviewElementView
+          element={element}
+          pageId={pageId ?? ""}
+          byItemId={byItemId ?? new Map()}
+        />
+      )
+    ) : (
+      <ImageElementRow
+        element={element}
+        onExpand={onExpandImage ?? (() => {})}
+      />
+    );
+
+  const commentRow =
+    showCommentLink && pageTag ? (
+      <div className="flex justify-end">
+        <ElementCommentLink
+          tag={pageTag}
+          elementId={element.id}
+          count={commentCount}
+        />
+      </div>
+    ) : null;
+
   return (
     <div className="flex items-start gap-1">
-      {isSection ? (
+      {isSection && onToggleSectionCollapsed ? (
         <button
           type="button"
           data-swipe-exclude
@@ -171,31 +309,11 @@ function ElementRowContent({
           )}
         </button>
       ) : null}
-      <div className={`min-w-0 flex-1 ${isSection ? "py-1" : ""}`}>
-        {element.type === "section" ? (
-          <SectionHeadingEditor
-            element={element}
-            editable={editable}
-            onTextChange={onUpdateElementText}
-          />
-        ) : element.type === "text" ? (
-          <TextElementEditor
-            element={element}
-            editable={editable}
-            onTextChange={onUpdateElementText}
-          />
-        ) : element.type === "map" ? (
-          editable && onUpdateMapPlaces ? (
-            <MapElementEditor
-              element={element}
-              onPlacesChange={onUpdateMapPlaces}
-            />
-          ) : (
-            <MapElementView element={element} />
-          )
-        ) : (
-          <ImageElementRow element={element} onExpand={onExpandImage} />
-        )}
+      <div
+        className={`min-w-0 flex-1 ${isSection ? "py-1" : ""}`}
+      >
+        {elementBody}
+        {commentRow}
       </div>
     </div>
   );
@@ -218,14 +336,23 @@ function SortableRow(props: ElementRowProps) {
   };
 
   const row = (
-    <ElementRowContent
+    <ElementContent
       element={props.element}
       editable={props.editable}
+      viewMode={props.viewMode}
+      pageId={props.pageId}
+      pageTag={props.pageTag}
+      byItemId={props.byItemId}
       collapsedSectionIds={props.collapsedSectionIds}
       onToggleSectionCollapsed={props.onToggleSectionCollapsed}
       onExpandImage={props.onExpandImage}
       onUpdateElementText={props.onUpdateElementText}
       onUpdateMapPlaces={props.onUpdateMapPlaces}
+      onUpdateElementItems={props.onUpdateElementItems}
+      onSetListStyle={props.onSetListStyle}
+      removeNoteForItem={props.removeNoteForItem}
+      showCommentLink={props.viewMode && props.element.type !== "section"}
+      commentCount={props.commentCount ?? 0}
     />
   );
 
@@ -262,6 +389,7 @@ function SortableRow(props: ElementRowProps) {
           openElementId={props.openSwipeElementId}
           onOpenChange={props.onOpenSwipeChange}
           onDelete={() => props.onDelete(props.element.id)}
+          deleteHint={props.deleteHint}
         >
           {row}
         </SwipeToDeleteRow>
@@ -274,13 +402,19 @@ function SortableRow(props: ElementRowProps) {
 
 function StaticRow(props: ElementRowProps) {
   return (
-    <ElementRowContent
+    <ElementContent
       element={props.element}
       editable={false}
+      viewMode={props.viewMode}
+      pageId={props.pageId}
+      pageTag={props.pageTag}
+      byItemId={props.byItemId}
       collapsedSectionIds={props.collapsedSectionIds}
       onToggleSectionCollapsed={props.onToggleSectionCollapsed}
       onExpandImage={props.onExpandImage}
       onUpdateMapPlaces={props.onUpdateMapPlaces}
+      showCommentLink={props.viewMode && props.element.type !== "section"}
+      commentCount={props.commentCount ?? 0}
     />
   );
 }
@@ -288,15 +422,24 @@ function StaticRow(props: ElementRowProps) {
 export function PageElementsList({
   elements,
   editable,
+  pageId,
+  pageTag,
   collapsedSectionIds,
   onToggleSectionCollapsed,
   onUpdateElementText,
   onUpdateMapPlaces,
+  onUpdateElementItems,
+  onSetListStyle,
   onDeleteElement,
   onReorderToFlatIds,
   onInsertAtFlatIndex,
 }: PageElementsListProps) {
   const { user } = useAuth();
+  const viewMode = !editable;
+  const { byItemId, removeNoteForItem, removeNoteForElement } = usePageReviews(
+    pageId,
+  );
+  const { countByElementId } = usePageCommentCounts(viewMode ? pageId : undefined);
   const [expandedImage, setExpandedImage] = useState<{
     path: string;
     caption: string;
@@ -398,6 +541,10 @@ export function PageElementsList({
 
   const rowProps = {
     editable,
+    viewMode,
+    pageId,
+    pageTag,
+    byItemId,
     collapsedSectionIds,
     onToggleSectionCollapsed,
     openSwipeElementId,
@@ -407,6 +554,9 @@ export function PageElementsList({
       setExpandedImage(payload),
     onUpdateElementText,
     onUpdateMapPlaces,
+    onUpdateElementItems,
+    onSetListStyle,
+    removeNoteForItem: editable ? removeNoteForItem : undefined,
   };
 
   const showInsertSlots = editable && Boolean(onInsertAtFlatIndex);
@@ -428,10 +578,27 @@ export function PageElementsList({
           return null;
         }
 
+        const deleteHint =
+          editable &&
+          (element.type === "map" || element.type === "review")
+            ? removeNoteForElement(
+                (element.items ?? []).map((item) => item.id),
+              )
+            : null;
+
         const row = editable ? (
-          <SortableRow element={element} {...rowProps} />
+          <SortableRow
+            element={element}
+            {...rowProps}
+            commentCount={countByElementId.get(element.id) ?? 0}
+            deleteHint={deleteHint}
+          />
         ) : (
-          <StaticRow element={element} {...rowProps} />
+          <StaticRow
+            element={element}
+            {...rowProps}
+            commentCount={countByElementId.get(element.id) ?? 0}
+          />
         );
 
         if (!showInsertSlots) {

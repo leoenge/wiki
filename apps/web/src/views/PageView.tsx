@@ -348,6 +348,14 @@ function LoadedPageView({
     editor.addMapElementAt(insertFlatIndex);
   }
 
+  function onAddListElement() {
+    editor.addListElementAt(insertFlatIndex);
+  }
+
+  function onAddReviewElement() {
+    editor.addReviewElementAt(insertFlatIndex);
+  }
+
   function onAddSectionElement() {
     const section = editor.addSectionElementAt(insertFlatIndex);
     const rootSections = displayElements.filter(
@@ -514,10 +522,16 @@ function LoadedPageView({
         <PageElementsList
           elements={displayElements}
           editable={isEditing}
+          pageId={page.id}
+          pageTag={page.tag}
           collapsedSectionIds={collapsedSectionIds}
           onToggleSectionCollapsed={toggleSectionCollapsed}
           onUpdateElementText={isEditing ? editor.updateElementText : undefined}
           onUpdateMapPlaces={isEditing ? editor.updateMapPlaces : undefined}
+          onUpdateElementItems={
+            isEditing ? editor.updateElementItems : undefined
+          }
+          onSetListStyle={isEditing ? editor.setListStyle : undefined}
           onDeleteElement={isEditing ? editor.deleteElementById : undefined}
           onReorderToFlatIds={isEditing ? editor.reorderToFlatIds : undefined}
           onInsertAtFlatIndex={isEditing ? openAddMenuAtFlatIndex : undefined}
@@ -541,6 +555,14 @@ function LoadedPageView({
         }}
         onChooseMap={() => {
           onAddMapElement();
+          setChooseElementOpen(false);
+        }}
+        onChooseList={() => {
+          onAddListElement();
+          setChooseElementOpen(false);
+        }}
+        onChooseReview={() => {
+          onAddReviewElement();
           setChooseElementOpen(false);
         }}
       />

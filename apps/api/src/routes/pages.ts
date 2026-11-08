@@ -7,7 +7,9 @@ import {
   publishPageDraft,
   upsertPageDraft,
 } from "../services/drafts.js";
+import { postElementComment } from "../services/comments.js";
 import { createPage, updatePage } from "../services/pages.js";
+import { upsertItemReview } from "../services/reviews.js";
 import { membersRouter } from "./members.js";
 
 export const pagesRouter = Router();
@@ -77,5 +79,41 @@ pagesRouter.delete("/:pageId/draft", requireAuth, async (req, res, next) => {
     next(error);
   }
 });
+
+pagesRouter.put(
+  "/:pageId/items/:itemId/review",
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const review = await upsertItemReview(
+        req.uid!,
+        req.params.pageId,
+        req.params.itemId,
+        req.body,
+      );
+      res.json(review);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+pagesRouter.post(
+  "/:pageId/elements/:elementId/comments",
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const comment = await postElementComment(
+        req.uid!,
+        req.params.pageId,
+        req.params.elementId,
+        req.body,
+      );
+      res.status(201).json(comment);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 pagesRouter.use("/:pageId/members", membersRouter);

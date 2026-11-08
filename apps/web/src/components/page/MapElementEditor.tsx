@@ -15,12 +15,14 @@ import { PlacePicker, type PendingMapPlace } from "./PlacePicker.js";
 type MapElementEditorProps = {
   element: PageElementWithItems;
   onPlacesChange: (elementId: string, places: MapPlace[]) => void;
+  removeNoteForItem?: (itemId: string) => string | null;
 };
 
 function MapElementEditorContent({
   element,
   mapId,
   onPlacesChange,
+  removeNoteForItem,
 }: MapElementEditorProps & { mapId: string }) {
   const places = mapPlacesFromItems(element.items ?? []);
   const [focusPlaceId, setFocusPlaceId] = useState<string | null>(null);
@@ -61,6 +63,7 @@ function MapElementEditorContent({
               highlighted={focusPlaceId === place.id}
               onSelect={() => setFocusPlaceId(place.id)}
               onRemove={() => removePlace(place.id)}
+              removeNote={removeNoteForItem?.(place.id) ?? null}
             />
           ))}
         </div>
@@ -74,6 +77,7 @@ function MapElementEditorContent({
 export function MapElementEditor({
   element,
   onPlacesChange,
+  removeNoteForItem,
 }: MapElementEditorProps) {
   const config = readGoogleMapsConfig();
 
@@ -91,6 +95,7 @@ export function MapElementEditor({
         element={element}
         mapId={config.mapId}
         onPlacesChange={onPlacesChange}
+        removeNoteForItem={removeNoteForItem}
       />
     </APIProvider>
   );

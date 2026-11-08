@@ -7,8 +7,10 @@ import {
   draftContentToPageElements,
   flattenPageElements,
   itemFromMapPlace,
+  type DraftElementItem,
   type ImageMetadataFields,
   type Json,
+  type ListStyle,
   type MapPlace,
   type Page,
   type PageDraftContent,
@@ -73,7 +75,13 @@ function newElement(
     Partial<
       Pick<
         PageElementWithItems,
-        "text" | "caption" | "image_path" | "parent_id" | "position" | "items"
+        | "text"
+        | "caption"
+        | "image_path"
+        | "parent_id"
+        | "position"
+        | "items"
+        | "list_style"
       >
     >,
 ): PageElementWithItems {
@@ -88,6 +96,10 @@ function newElement(
     caption: partial.caption ?? null,
     image_path: partial.image_path ?? null,
     image_id: null,
+    list_style:
+      partial.type === "list"
+        ? (partial.list_style ?? "bullet")
+        : null,
     items: partial.items ?? [],
     created_at: now,
     updated_at: now,
@@ -422,21 +434,95 @@ export function useDraftEditor({
     [page.id],
   );
 
-  const updateMapPlaces = useCallback(
-    (elementId: string, places: MapPlace[]) => {
-      const items = mapPlacesToItems(places);
+  const updateElementItems = useCallback(
+    (elementId: string, items: DraftElementItem[]) => {
       setElements((previous) =>
-        previous.map((element) =>
-          element.id === elementId
-            ? { ...element, items: items.map((item, index) => ({
-                ...item,
+        previous.map((element) => {
+          if (element.id !== elementId) {
+            return element;
+          }
+          const now = new Date().toISOString();
+          return {
+            ...element,
+            items: items.map((item, index) => {
+              const existing = element.items.find((row) => row.id === item.id);
+              return {
+                id: item.id,
                 element_id: elementId,
                 page_id: page.id,
                 position: index,
-              })) }
-            : element,
-        ),
+                label: item.label,
+                data: item.data as NonNullable<Json>,
+                created_at: existing?.created_at ?? now,
+                updated_at: now,
+              };
+            }),
+          };
+        }),
       );
+    },
+    [page.id],
+  );
+
+  const updateMapPlaces = useCallback(
+    (elementId: string, places: MapPlace[]) => {
+      const items = mapPlacesToItems(places);
+      updateElementItems(
+        elementId,
+        items.map((item) => ({
+          id: item.id,
+          label: item.label,
+          data: item.data as Record<string, unknown>,
+        })),
+      );
+    },
+    [updateElementItems],
+  );
+
+  const setListStyle = useCallback((elementId: string, style: ListStyle) => {
+    setElements((previous) =>
+      previous.map((element) =>
+        element.id === elementId ? { ...element, list_style: style } : element,
+      ),
+    );
+  }, []);
+
+  const addListElementAt = useCallback(
+    (insertAtFlatIndex: number) => {
+      const created = newElement(page.id, {
+        type: "list",
+        list_style: "bullet",
+        items: [],
+      });
+      setElements((previous) => {
+        const flat = flattenPageElements(previous).map((element) => element.id);
+        const insertAt = Math.max(0, Math.min(insertAtFlatIndex, flat.length));
+        const nextFlat = [
+          ...flat.slice(0, insertAt),
+          created.id,
+          ...flat.slice(insertAt),
+        ];
+        return applyFlatOrderToElements([...previous, created], nextFlat);
+      });
+      return created;
+    },
+    [page.id],
+  );
+
+  const addReviewElementAt = useCallback(
+    (insertAtFlatIndex: number) => {
+      const created = newElement(page.id, { type: "review", items: [] });
+      setElements((previous) => {
+        const flat = flattenPageElements(previous).map((element) => element.id);
+        const insertAt = Math.max(0, Math.min(insertAtFlatIndex, flat.length));
+        const nextFlat = [
+          ...flat.slice(0, insertAt),
+          created.id,
+          ...flat.slice(insertAt),
+        ];
+        return applyFlatOrderToElements([...previous, created], nextFlat);
+      });
+      return created;
     },
     [page.id],
   );
@@ -463,7 +549,11 @@ export function useDraftEditor({
     addSectionElementAt,
     addImageElementsAt,
     addMapElementAt,
+    addListElementAt,
+    addReviewElementAt,
     updateMapPlaces,
+    updateElementItems,
+    setListStyle,
     flushSave,
     saveNow,
     resetToLive,

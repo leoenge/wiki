@@ -83,3 +83,19 @@ export {
   type PageMemberAdded,
   type InvitePreview,
 } from "./api/members.js";
+export {
+  upsertReviewBodySchema,
+  type Review,
+  type UpsertReviewBody,
+} from "./api/reviews.js";
+export {
+  postElementCommentBodySchema,
+  type ElementComment,
+  type PostElementCommentBody,
+} from "./api/comments.js";
+export {
+  listStyleSchema,
+  MAX_LIST_ITEMS,
+  MAX_REVIEW_ITEMS,
+  type ListStyle,
+} from "./api/drafts.js";

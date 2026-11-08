@@ -8,7 +8,16 @@ type MapPlaceCardProps = {
   highlighted?: boolean;
   onSelect?: () => void;
   onRemove?: () => void;
+  removeNote?: string | null;
 };
+
+const rowClass = (highlighted: boolean) =>
+  [
+    "flex w-full items-start gap-2 py-1.5",
+    highlighted ? "bg-surface/80 -mx-3 px-3 rounded-lg" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
 export function MapPlaceCard({
   place,
@@ -16,16 +25,20 @@ export function MapPlaceCard({
   highlighted = false,
   onSelect,
   onRemove,
+  removeNote,
 }: MapPlaceCardProps) {
-  const content = (
-    <>
-      <div className="min-w-0 flex-1 space-y-0.5">
-        <p className="font-serif text-base leading-snug">{place.name}</p>
-        {place.address ? (
-          <p className="text-muted text-sm leading-snug">{place.address}</p>
-        ) : null}
-      </div>
-      {editable && onRemove ? (
+  const placeDetails = (
+    <div className="min-w-0 flex-1 space-y-0.5">
+      <p className="font-serif text-base leading-snug">{place.name}</p>
+      {place.address ? (
+        <p className="text-muted text-sm leading-snug">{place.address}</p>
+      ) : null}
+    </div>
+  );
+
+  const removeControl =
+    editable && onRemove ? (
+      <div className="flex shrink-0 flex-col items-end gap-1">
         <button
           type="button"
           data-swipe-exclude
@@ -33,14 +46,34 @@ export function MapPlaceCard({
             event.stopPropagation();
             onRemove();
           }}
-          className="text-muted hover:text-foreground shrink-0 p-1"
+          className="text-muted hover:text-foreground p-1"
           aria-label={`Remove ${place.name}`}
         >
           <XIcon size={18} weight="bold" />
         </button>
-      ) : null}
-    </>
-  );
+        {removeNote ? (
+          <p className="text-muted max-w-48 text-right text-xs leading-snug">
+            {removeNote}
+          </p>
+        ) : null}
+      </div>
+    ) : null;
+
+  if (onSelect && removeControl) {
+    return (
+      <div className={rowClass(highlighted)}>
+        <button
+          type="button"
+          data-swipe-exclude
+          onClick={onSelect}
+          className="flex min-w-0 flex-1 items-start gap-2 text-left transition-colors"
+        >
+          {placeDetails}
+        </button>
+        {removeControl}
+      </div>
+    );
+  }
 
   if (onSelect) {
     return (
@@ -49,27 +82,19 @@ export function MapPlaceCard({
         data-swipe-exclude
         onClick={onSelect}
         className={[
-          "flex w-full items-start gap-2 py-1.5 text-left transition-colors",
-          highlighted ? "bg-surface/80 -mx-3 px-3 rounded-lg" : "",
-        ]
-          .filter(Boolean)
-          .join(" ")}
+          rowClass(highlighted),
+          "text-left transition-colors",
+        ].join(" ")}
       >
-        {content}
+        {placeDetails}
       </button>
     );
   }
 
   return (
-    <div
-      className={[
-        "flex items-start gap-2 py-1.5",
-        highlighted ? "bg-surface/80 -mx-3 px-3 rounded-lg" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      {content}
+    <div className={rowClass(highlighted)}>
+      {placeDetails}
+      {removeControl}
     </div>
   );
 }

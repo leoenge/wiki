@@ -19,6 +19,32 @@ export type Database = {
                   Relationships: [
                     
                   ]
+                },"element_comments": {
+                  Row: {
+                    "body": string,"created_at": string,"element_id": string,"id": string,"page_id": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "body": string,"created_at"?: string,"element_id": string,"id"?: string,"page_id": string,"user_id": string
+                  }
+                  Update: {
+                    "body"?: string,"created_at"?: string,"element_id"?: string,"id"?: string,"page_id"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "element_comments_element_page_fkey"
+      columns: ["element_id","page_id"]
+isOneToOne: false
+      referencedRelation: "page_elements"
+      referencedColumns: ["id","page_id"]
+    },{
+      foreignKeyName: "element_comments_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"images": {
                   Row: {
                     "created_at": string,"id": string,"latitude": number | null,"longitude": number | null,"owner_id": string,"path": string,"taken_at": string,"updated_at": string
@@ -75,14 +101,14 @@ isOneToOne: false
                   ]
                 },"page_elements": {
                   Row: {
-                    "caption": string | null,"created_at": string,"id": string,"image_id": string | null,"image_path": string | null,"page_id": string,"parent_id": string | null,"position": number,"text": string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at": string
+                    "caption": string | null,"created_at": string,"id": string,"image_id": string | null,"image_path": string | null,"list_style": string | null,"page_id": string,"parent_id": string | null,"position": number,"text": string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_id"?: string | null,"image_path"?: string | null,"page_id": string,"parent_id"?: string | null,"position": number,"text"?: string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at"?: string
+                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_id"?: string | null,"image_path"?: string | null,"list_style"?: string | null,"page_id": string,"parent_id"?: string | null,"position": number,"text"?: string | null,"type": Database["public"]['Enums']["page_element_type"],"updated_at"?: string
                   }
                   Update: {
-                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_id"?: string | null,"image_path"?: string | null,"page_id"?: string,"parent_id"?: string | null,"position"?: number,"text"?: string | null,"type"?: Database["public"]['Enums']["page_element_type"],"updated_at"?: string
+                    "caption"?: string | null,"created_at"?: string,"id"?: string,"image_id"?: string | null,"image_path"?: string | null,"list_style"?: string | null,"page_id"?: string,"parent_id"?: string | null,"position"?: number,"text"?: string | null,"type"?: Database["public"]['Enums']["page_element_type"],"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -177,10 +203,50 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"reviews": {
+                  Row: {
+                    "comment": string | null,"created_at": string,"id": string,"item_id": string,"page_id": string,"rating": number | null,"updated_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "comment"?: string | null,"created_at"?: string,"id"?: string,"item_id": string,"page_id": string,"rating"?: number | null,"updated_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "comment"?: string | null,"created_at"?: string,"id"?: string,"item_id"?: string,"page_id"?: string,"rating"?: number | null,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "reviews_item_page_fkey"
+      columns: ["item_id","page_id"]
+isOneToOne: false
+      referencedRelation: "page_element_items"
+      referencedColumns: ["id","page_id"]
+    },{
+      foreignKeyName: "reviews_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 }
           }
           Views: {
-            [_ in never]: never
+            "element_comment_counts": {
+                  Row: {
+                    "count": number | null,"element_id": string,"page_id": string
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "element_comments_element_page_fkey"
+      columns: ["element_id","page_id"]
+isOneToOne: false
+      referencedRelation: "page_elements"
+      referencedColumns: ["id","page_id"]
+    }
+                  ]
+                }
           }
           Functions: {
             "can_read_image_path":
@@ -203,7 +269,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "page_element_type": "image"|"text"|"section"|"map"
+            "page_element_type": "image"|"text"|"section"|"map"|"list"|"review"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -319,7 +385,7 @@ export type CompositeTypes<
 export const Constants = {
   "public": {
           Enums: {
-            "page_element_type": ["image", "text", "section", "map"]
+            "page_element_type": ["image", "text", "section", "map", "list", "review"]
           }
         }
 } as const

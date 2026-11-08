@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+
 import {
   createPageBodySchema,
   updatePageBodySchema,
@@ -50,12 +52,12 @@ export async function createPage(uid: string, body: unknown): Promise<Page> {
 
   const { data, error } = await db
     .from("pages")
-    // invite_token defaults in the database.
     .insert({
       created_by: uid,
       name: parsed.name,
       tag: parsed.tag,
-    } as never)
+      invite_token: crypto.randomBytes(24).toString("hex"),
+    })
     .select()
     .single();
 
