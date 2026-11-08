@@ -28,9 +28,10 @@ On the list of items that are added to a map, we should show a star row which yo
 On review elements:
 This is a custom list you add where you type and item name and add it and then this becomes a list, a bit like the list of items connected to a map. Each of these has a review system like the maps items above.
 
-When adding your review there should also be a little input field for a short commment connected to
+When adding your review there should also be a little input field for a short commment connected to your review.
 
 **Comments**
-You should be able to comment every element that is on the page
+You should be able to comment every element that is on the page. So images, text elements, a map, a review card etc. You should be able to comment the top-level element, not items in the element. So you comment the whole map element, not the individual items. We should show a comment icon in connection to the element, and when you click that we open up a new view, where we show only the selected element at the top, and then a listing of the comments below, and an input field for you to write comments.
 
 **Lists**
+This is a bit like a text element, but it is just a list of items. You chose whether it is a bullet list or a numbered list. You then enter item by item, a bit like when you add stuff to a map right now.
